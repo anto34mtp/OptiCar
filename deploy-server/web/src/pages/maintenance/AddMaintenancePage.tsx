@@ -18,7 +18,8 @@ const PART_TYPES = [
   { value: 'DISQUES_AV', label: 'Disques avant' },
   { value: 'DISQUES_AR', label: 'Disques arrière' },
   { value: 'LIQUIDE_FREIN', label: 'Liquide de frein' },
-  { value: 'PNEUS', label: 'Pneus' },
+  { value: 'PNEUS_AV', label: 'Pneus avant' },
+  { value: 'PNEUS_AR', label: 'Pneus arrière' },
   { value: 'BATTERIE', label: 'Batterie' },
   { value: 'CONTROLE_TECHNIQUE', label: 'Contrôle technique' },
 ];

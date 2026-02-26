@@ -30,6 +30,11 @@ export default function DashboardPage() {
     queryFn: vehiclesService.getAll,
   });
 
+  const { data: co2Stats } = useQuery({
+    queryKey: ['co2-stats'],
+    queryFn: () => statsService.getCo2Stats(),
+  });
+
   const isLoading = statsLoading || vehiclesLoading;
 
   return (
@@ -80,6 +85,15 @@ export default function DashboardPage() {
           <p className="text-sm font-medium text-gray-500">Nombre de pleins</p>
           <p className="text-2xl font-bold text-gray-900 mt-1">
             {isLoading ? '...' : stats?.totalRefuels || 0}
+          </p>
+        </Card>
+
+        <Card className="border-l-4 border-l-emerald-500">
+          <p className="text-sm font-medium text-gray-500">CO2 total</p>
+          <p className="text-2xl font-bold text-emerald-700 mt-1">
+            {co2Stats?.totalCo2Grams
+              ? `${(co2Stats.totalCo2Grams / 1000).toFixed(1)} kg`
+              : 'N/A'}
           </p>
         </Card>
       </div>

@@ -101,6 +101,21 @@ export default function VehiclesPage() {
                 min={1900}
                 max={new Date().getFullYear() + 1}
               />
+              <Input
+                id="co2PerKm"
+                type="number"
+                label="CO2 g/km (optionnel)"
+                value={formData.co2PerKm || ''}
+                onChange={(e) =>
+                  setFormData({
+                    ...formData,
+                    co2PerKm: e.target.value ? parseInt(e.target.value) : undefined,
+                  })
+                }
+                placeholder="Ex: 120"
+                min={0}
+                max={1000}
+              />
             </div>
             <div className="flex justify-end gap-3">
               <Button type="button" variant="secondary" onClick={() => setShowForm(false)}>

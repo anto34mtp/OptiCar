@@ -19,7 +19,8 @@ const PART_TYPE_LABELS: Record<string, string> = {
   DISQUES_AV: 'Disques avant',
   DISQUES_AR: 'Disques arrière',
   LIQUIDE_FREIN: 'Liquide de frein',
-  PNEUS: 'Pneus',
+  PNEUS_AV: 'Pneus avant',
+  PNEUS_AR: 'Pneus arrière',
   BATTERIE: 'Batterie',
   CONTROLE_TECHNIQUE: 'Contrôle technique',
 };

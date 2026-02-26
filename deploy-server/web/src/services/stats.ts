@@ -78,4 +78,9 @@ export const statsService = {
     const response = await api.get('/stats/total-costs');
     return response.data;
   },
+
+  async getCo2Stats() {
+    const response = await api.get('/stats/co2');
+    return response.data;
+  },
 };

@@ -17,6 +17,7 @@ export interface CreateVehicleData {
   model: string;
   fuelType: string;
   year?: number;
+  co2PerKm?: number;
 }
 
 export const vehiclesService = {

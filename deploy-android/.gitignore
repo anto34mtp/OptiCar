@@ -1,0 +1,14 @@
+node_modules/
+.expo/
+dist/
+*.jsbundle
+.DS_Store
+*.hprof
+
+# Android
+android/app/build/
+android/.gradle/
+android/.idea/
+android/local.properties
+android/*.iml
+android/.cxx/

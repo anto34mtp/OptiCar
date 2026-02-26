@@ -1,0 +1,24 @@
+# Dependencies
+node_modules/
+.expo/
+dist/
+
+# Environment (contient secrets)
+deploy-server/.env
+
+# Android build artifacts
+deploy-android/android/app/build/
+deploy-android/android/.gradle/
+deploy-android/android/.idea/
+deploy-android/android/local.properties
+deploy-android/android/*.iml
+deploy-android/android/.cxx/
+deploy-android/*.jsbundle
+deploy-android/*.hprof
+
+# EAS config (URLs spécifiques par env)
+deploy-android/eas.json
+
+# OS
+.DS_Store
+Thumbs.db

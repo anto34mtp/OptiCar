@@ -1,0 +1,99 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "mysql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id        String    @id @default(uuid())
+  email     String    @unique
+  password  String
+  name      String?
+  vehicles  Vehicle[]
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+
+  @@map("users")
+}
+
+model Vehicle {
+  id        String   @id @default(uuid())
+  brand     String
+  model     String
+  fuelType  String   // SP95, SP98, E10, E85, DIESEL, ELECTRIC
+  year      Int?
+  co2PerKm  Int?     // CO2 emissions in g/km
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  refuels            Refuel[]
+  maintenanceRules   MaintenanceRule[]
+  maintenanceRecords MaintenanceRecord[]
+  insuranceRecords   InsuranceRecord[]
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
+
+  @@map("vehicles")
+}
+
+model Refuel {
+  id            String   @id @default(uuid())
+  date          DateTime @default(now())
+  mileage       Int
+  pricePerLiter Float
+  liters        Float
+  totalPrice    Float
+  sourceType    String   // TICKET, PUMP, MANUAL
+  vehicleId     String
+  vehicle       Vehicle  @relation(fields: [vehicleId], references: [id], onDelete: Cascade)
+  createdAt     DateTime @default(now())
+
+  @@map("refuels")
+}
+
+model MaintenanceRule {
+  id             String   @id @default(uuid())
+  vehicleId      String
+  vehicle        Vehicle  @relation(fields: [vehicleId], references: [id], onDelete: Cascade)
+  category       String   // MOTEUR, CLIMATISATION, DISTRIBUTION, FREINAGE, LIAISON_SOL, ADMINISTRATIF
+  partType       String   // VIDANGE, FILTRE_AIR, FILTRE_CARBURANT, BOUGIES, FILTRE_HABITACLE, KIT_DISTRIBUTION, POMPE_EAU, COURROIE_ACCESSOIRES, LIQUIDE_REFROIDISSEMENT, PLAQUETTES_AV, PLAQUETTES_AR, DISQUES_AV, DISQUES_AR, LIQUIDE_FREIN, PNEUS, BATTERIE, CONTROLE_TECHNIQUE
+  intervalKm     Int?
+  intervalMonths Int?
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  @@map("maintenance_rules")
+}
+
+model MaintenanceRecord {
+  id          String   @id @default(uuid())
+  vehicleId   String
+  vehicle     Vehicle  @relation(fields: [vehicleId], references: [id], onDelete: Cascade)
+  date        DateTime
+  mileage     Int
+  partType    String   // Same as MaintenanceRule.partType
+  price       Float?
+  garage      String?
+  notes       String?
+  sourceType  String   // MANUAL, SCAN
+  scanFileUrl String?
+  createdAt   DateTime @default(now())
+
+  @@map("maintenance_records")
+}
+
+model InsuranceRecord {
+  id        String   @id @default(uuid())
+  vehicleId String
+  vehicle   Vehicle  @relation(fields: [vehicleId], references: [id], onDelete: Cascade)
+  date      DateTime
+  amount    Float
+  type      String   // MENSUEL, TRIMESTRIEL, SEMESTRIEL, ANNUEL
+  insurer   String?
+  notes     String?
+  createdAt DateTime @default(now())
+
+  @@map("insurance_records")
+}

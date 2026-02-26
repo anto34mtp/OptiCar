@@ -1,0 +1,57 @@
+{
+  "expo": {
+    "name": "OptiCar DEV",
+    "slug": "opticar-dev",
+    "version": "2.1",
+    "orientation": "portrait",
+    "userInterfaceStyle": "light",
+    "icon": "./logo.png",
+    "splash": {
+      "image": "./logo.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#e85d04"
+    },
+    "assetBundlePatterns": [
+      "**/*"
+    ],
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "com.opticar.dev"
+    },
+    "android": {
+      "adaptiveIcon": {
+        "foregroundImage": "./logo.png",
+        "backgroundColor": "#e85d04"
+      },
+      "package": "com.opticar.dev",
+      "permissions": [
+        "android.permission.CAMERA",
+        "android.permission.RECORD_AUDIO"
+      ],
+      "targetSdkVersion": 35,
+      "versionCode": 1
+    },
+    "plugins": [
+      [
+        "expo-camera",
+        {
+          "cameraPermission": "Permet à l'application d'accéder à votre caméra pour scanner les tickets."
+        }
+      ],
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "Permet à l'application d'accéder à vos photos pour importer des tickets."
+        }
+      ],
+      "expo-notifications"
+    ],
+    "scheme": "opticar-dev",
+    "owner": "crawgamers",
+    "extra": {
+      "eas": {
+        "projectId": "c280b030-40d0-406d-8929-da3e2afe4b69"
+      }
+    }
+  }
+}

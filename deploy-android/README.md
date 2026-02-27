@@ -27,7 +27,7 @@ L'URL de l'API est configurée dans `eas.json` :
   "build": {
     "production": {
       "env": {
-        "EXPO_PUBLIC_API_URL": "https://dev-voiture.delgehier.com"
+        "EXPO_PUBLIC_API_URL": "https://voiture-dev.delgehier.com"
       }
     }
   }

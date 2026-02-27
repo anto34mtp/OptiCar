@@ -11,7 +11,7 @@ nano .env  # Remplir les valeurs
 docker compose up -d --build
 
 # 3. (Optionnel) SSL avec Certbot
-certbot --nginx -d dev-voiture.delgehier.com
+certbot --nginx -d voiture-dev.delgehier.com
 ```
 
 ## Structure

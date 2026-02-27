@@ -66,7 +66,7 @@ export default function VehicleMaintenanceScreen({ route, navigation }: any) {
   const queryClient = useQueryClient();
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editForm, setEditForm] = useState<any>({});
-  const { isVehicleEnabled, setVehicleEnabled } = useNotificationSettingsStore();
+  const { isVehicleEnabled, setVehicleEnabled, isPartTypeEnabled, setPartTypeEnabled } = useNotificationSettingsStore();
 
   const { data: statuses, isLoading } = useQuery({
     queryKey: ['maintenance-status', vehicleId],
@@ -183,7 +183,18 @@ export default function VehicleMaintenanceScreen({ route, navigation }: any) {
               {items.map((s: any) => (
                 <View key={s.ruleId} style={styles.gaugeCard}>
                   <View style={styles.gaugeHeader}>
-                    <Text style={styles.gaugeName}>{PART_TYPE_LABELS[s.partType] || s.partType}</Text>
+                    <View style={styles.gaugeNameRow}>
+                      <Text style={styles.gaugeName}>{PART_TYPE_LABELS[s.partType] || s.partType}</Text>
+                      <Switch
+                        value={isPartTypeEnabled(vehicleId, s.partType)}
+                        onValueChange={(val) => {
+                          setPartTypeEnabled(vehicleId, s.partType, val);
+                          if (val) checkAndScheduleNotifications();
+                        }}
+                        trackColor={{ true: '#3b82f6' }}
+                        style={styles.partTypeSwitch}
+                      />
+                    </View>
                     <Text style={styles.gaugePercent}>{s.wearPercent !== null ? `${s.wearPercent}%` : '—'}</Text>
                   </View>
                   <WearBar percent={s.wearPercent} status={s.status} />
@@ -344,4 +355,6 @@ const styles = StyleSheet.create({
   cancelBtnText: { color: '#6b7280', fontSize: 13, paddingVertical: 8 },
   notifRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', backgroundColor: '#fff', borderRadius: 12, padding: 14, marginBottom: 16, borderWidth: 1, borderColor: '#e5e7eb' },
   notifText: { fontSize: 15, fontWeight: '500', color: '#111827' },
+  gaugeNameRow: { flexDirection: 'row', alignItems: 'center', gap: 8, flex: 1 },
+  partTypeSwitch: { transform: [{ scaleX: 0.7 }, { scaleY: 0.7 }] },
 });

@@ -69,7 +69,7 @@ function MainTabs() {
       <Tab.Screen
         name="Eco"
         component={EcoScreen}
-        options={{ title: 'Eco' }}
+        options={{ title: 'Stats' }}
       />
     </Tab.Navigator>
   );

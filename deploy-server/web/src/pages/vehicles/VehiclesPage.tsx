@@ -7,6 +7,28 @@ import Button from '../../components/ui/Button';
 import Input from '../../components/ui/Input';
 import Select from '../../components/ui/Select';
 
+const brandOptions = [
+  { value: 'Renault', label: 'Renault' },
+  { value: 'Peugeot', label: 'Peugeot' },
+  { value: 'Citroën', label: 'Citroën' },
+  { value: 'Dacia', label: 'Dacia' },
+  { value: 'Toyota', label: 'Toyota' },
+  { value: 'Volkswagen', label: 'Volkswagen' },
+  { value: 'Ford', label: 'Ford' },
+  { value: 'Audi', label: 'Audi' },
+  { value: 'BMW', label: 'BMW' },
+  { value: 'Mercedes', label: 'Mercedes' },
+  { value: 'Opel', label: 'Opel' },
+  { value: 'Fiat', label: 'Fiat' },
+  { value: 'Hyundai', label: 'Hyundai' },
+  { value: 'Kia', label: 'Kia' },
+  { value: 'Nissan', label: 'Nissan' },
+  { value: 'Seat', label: 'Seat' },
+  { value: 'Skoda', label: 'Skoda' },
+  { value: 'Volvo', label: 'Volvo' },
+  { value: 'Autre', label: 'Autre' },
+];
+
 const fuelTypeOptions = [
   { value: 'SP95', label: 'Sans Plomb 95' },
   { value: 'SP98', label: 'Sans Plomb 98' },
@@ -19,8 +41,9 @@ const fuelTypeOptions = [
 export default function VehiclesPage() {
   const queryClient = useQueryClient();
   const [showForm, setShowForm] = useState(false);
+  const [selectedBrand, setSelectedBrand] = useState('Renault');
   const [formData, setFormData] = useState<CreateVehicleData>({
-    brand: '',
+    brand: 'Renault',
     model: '',
     fuelType: 'SP95',
   });
@@ -35,7 +58,8 @@ export default function VehiclesPage() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['vehicles'] });
       setShowForm(false);
-      setFormData({ brand: '', model: '', fuelType: 'SP95' });
+      setSelectedBrand('Renault');
+      setFormData({ brand: 'Renault', model: '', fuelType: 'SP95' });
     },
   });
 
@@ -63,14 +87,31 @@ export default function VehiclesPage() {
           <h2 className="text-lg font-semibold text-gray-900 mb-4">Nouveau véhicule</h2>
           <form onSubmit={handleSubmit} className="space-y-4">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <Input
+              <Select
                 id="brand"
                 label="Marque"
-                value={formData.brand}
-                onChange={(e) => setFormData({ ...formData, brand: e.target.value })}
-                required
-                placeholder="Ex: Renault"
+                value={selectedBrand}
+                onChange={(e) => {
+                  const val = e.target.value;
+                  setSelectedBrand(val);
+                  if (val !== 'Autre') {
+                    setFormData({ ...formData, brand: val });
+                  } else {
+                    setFormData({ ...formData, brand: '' });
+                  }
+                }}
+                options={brandOptions}
               />
+              {selectedBrand === 'Autre' && (
+                <Input
+                  id="customBrand"
+                  label="Marque (autre)"
+                  value={formData.brand}
+                  onChange={(e) => setFormData({ ...formData, brand: e.target.value })}
+                  required
+                  placeholder="Saisir la marque"
+                />
+              )}
               <Input
                 id="model"
                 label="Modèle"

@@ -17,12 +17,20 @@ import { vehiclesService } from '../services/api';
 
 const fuelTypes = ['SP95', 'SP98', 'E10', 'E85', 'DIESEL', 'ELECTRIC'];
 
+const BRAND_LIST = [
+  'Renault', 'Peugeot', 'Citroën', 'Dacia', 'Toyota', 'Volkswagen',
+  'Ford', 'Audi', 'BMW', 'Mercedes', 'Opel', 'Fiat', 'Hyundai',
+  'Kia', 'Nissan', 'Seat', 'Skoda', 'Volvo', 'Autre',
+];
+
 export default function VehiclesScreen() {
   const navigation = useNavigation<any>();
   const queryClient = useQueryClient();
   const [showModal, setShowModal] = useState(false);
+  const [selectedBrand, setSelectedBrand] = useState('Renault');
+  const [customBrand, setCustomBrand] = useState('');
   const [formData, setFormData] = useState({
-    brand: '',
+    brand: 'Renault',
     model: '',
     fuelType: 'SP95',
     year: '',
@@ -46,7 +54,9 @@ export default function VehiclesScreen() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['vehicles'] });
       setShowModal(false);
-      setFormData({ brand: '', model: '', fuelType: 'SP95', year: '', co2PerKm: '' });
+      setSelectedBrand('Renault');
+      setCustomBrand('');
+      setFormData({ brand: 'Renault', model: '', fuelType: 'SP95', year: '', co2PerKm: '' });
     },
     onError: () => {
       Alert.alert('Erreur', 'Impossible de créer le véhicule');
@@ -104,12 +114,37 @@ export default function VehiclesScreen() {
           <View style={styles.modalContent}>
             <Text style={styles.modalTitle}>Nouveau véhicule</Text>
 
-            <TextInput
-              style={styles.input}
-              placeholder="Marque"
-              value={formData.brand}
-              onChangeText={(text) => setFormData({ ...formData, brand: text })}
-            />
+            <Text style={styles.fieldLabel}>Marque</Text>
+            <View style={styles.pickerContainer}>
+              <Picker
+                selectedValue={selectedBrand}
+                onValueChange={(value) => {
+                  setSelectedBrand(value);
+                  if (value !== 'Autre') {
+                    setFormData({ ...formData, brand: value });
+                    setCustomBrand('');
+                  } else {
+                    setFormData({ ...formData, brand: customBrand });
+                  }
+                }}
+              >
+                {BRAND_LIST.map((b) => (
+                  <Picker.Item key={b} label={b} value={b} />
+                ))}
+              </Picker>
+            </View>
+
+            {selectedBrand === 'Autre' && (
+              <TextInput
+                style={styles.input}
+                placeholder="Saisir la marque"
+                value={customBrand}
+                onChangeText={(text) => {
+                  setCustomBrand(text);
+                  setFormData({ ...formData, brand: text });
+                }}
+              />
+            )}
 
             <TextInput
               style={styles.input}
@@ -274,6 +309,12 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
     color: '#111827',
     marginBottom: 20,
+  },
+  fieldLabel: {
+    fontSize: 14,
+    fontWeight: '500',
+    color: '#374151',
+    marginBottom: 4,
   },
   input: {
     backgroundColor: '#f3f4f6',

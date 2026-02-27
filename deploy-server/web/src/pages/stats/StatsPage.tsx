@@ -19,6 +19,12 @@ import Select from '../../components/ui/Select';
 import { format } from 'date-fns';
 import { fr } from 'date-fns/locale';
 
+function formatKg(grams: number): string {
+  const kg = grams / 1000;
+  if (kg >= 1000) return `${(kg / 1000).toFixed(2)} t`;
+  return `${kg.toFixed(1)} kg`;
+}
+
 function formatCurrency(value: number) {
   return new Intl.NumberFormat('fr-FR', {
     style: 'currency',
@@ -53,6 +59,16 @@ export default function StatsPage() {
     queryKey: ['stats', 'fuel-prices', selectedVehicleId],
     queryFn: () => statsService.getFuelPriceHistory({ vehicleId: selectedVehicleId || undefined }),
   });
+
+  const { data: co2Data } = useQuery({
+    queryKey: ['stats', 'co2'],
+    queryFn: () => statsService.getCo2Stats(),
+  });
+
+  const co2MonthlyChartData = co2Data?.co2ByMonth?.map((m: any) => ({
+    month: m.month,
+    co2: Math.round(m.co2Grams / 1000),
+  })) || [];
 
   const consumptionChartData = consumptionData?.map((d) => ({
     date: format(new Date(d.date), 'dd/MM', { locale: fr }),
@@ -205,6 +221,76 @@ export default function StatsPage() {
           )}
         </Card>
       </div>
+
+      {/* CO2 Section */}
+      {co2Data && (
+        <>
+          <div className="border-t border-emerald-200 pt-8">
+            <h2 className="text-xl font-bold text-emerald-700 mb-6">Empreinte CO2</h2>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+            <Card className="bg-emerald-600 text-white">
+              <p className="text-emerald-100 text-sm font-medium">Emissions totales</p>
+              <p className="text-3xl font-bold mt-1">{formatKg(co2Data.totalCo2Grams)}</p>
+              <p className="text-emerald-200 text-sm mt-1">CO2</p>
+            </Card>
+          </div>
+
+          {/* CO2 Monthly chart */}
+          {co2MonthlyChartData.length > 0 && (
+            <Card>
+              <h2 className="text-lg font-semibold text-gray-900 mb-4">Emissions mensuelles (kg CO2)</h2>
+              <ResponsiveContainer width="100%" height={300}>
+                <BarChart data={co2MonthlyChartData}>
+                  <CartesianGrid strokeDasharray="3 3" />
+                  <XAxis dataKey="month" />
+                  <YAxis />
+                  <Tooltip
+                    formatter={(value: number) => [`${value} kg`, 'CO2']}
+                  />
+                  <Bar dataKey="co2" fill="#10b981" />
+                </BarChart>
+              </ResponsiveContainer>
+            </Card>
+          )}
+
+          {/* CO2 per vehicle table */}
+          {co2Data.co2ByVehicle?.length > 0 && (
+            <Card>
+              <h2 className="text-lg font-semibold text-gray-900 mb-4">CO2 par véhicule</h2>
+              <div className="overflow-x-auto">
+                <table className="w-full text-sm">
+                  <thead>
+                    <tr className="border-b border-gray-200">
+                      <th className="text-left py-3 px-4 font-medium text-gray-600">Véhicule</th>
+                      <th className="text-right py-3 px-4 font-medium text-gray-600">CO2 total</th>
+                      <th className="text-right py-3 px-4 font-medium text-gray-600">g/km</th>
+                      <th className="text-right py-3 px-4 font-medium text-gray-600">Distance</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {co2Data.co2ByVehicle.map((v: any) => (
+                      <tr key={v.vehicleId} className="border-b border-gray-100">
+                        <td className="py-3 px-4 font-medium text-gray-900">{v.brand} {v.model}</td>
+                        <td className="py-3 px-4 text-right text-emerald-600 font-semibold">
+                          {v.totalCo2 > 0 ? formatKg(v.totalCo2) : 'N/A'}
+                        </td>
+                        <td className="py-3 px-4 text-right text-gray-700">
+                          {v.co2PerKm ? `${v.co2PerKm} g/km` : 'Non renseigné'}
+                        </td>
+                        <td className="py-3 px-4 text-right text-gray-700">
+                          {v.totalDistance > 0 ? `${v.totalDistance.toLocaleString('fr-FR')} km` : 'N/A'}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </Card>
+          )}
+        </>
+      )}
     </div>
   );
 }

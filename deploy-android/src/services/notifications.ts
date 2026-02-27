@@ -70,6 +70,11 @@ export async function checkAndScheduleNotifications(): Promise<void> {
     const vehicleName = `${vehicle.brand} ${vehicle.model}`;
 
     for (const s of statuses) {
+      // Per-partType toggle check
+      if (!useNotificationSettingsStore.getState().isPartTypeEnabled(vehicle.id, s.partType)) {
+        continue;
+      }
+
       // No-Alert logic: skip if no interval defined or no wear data
       if (s.intervalKm == null && s.intervalMonths == null) continue;
       if (s.wearPercent == null) continue;

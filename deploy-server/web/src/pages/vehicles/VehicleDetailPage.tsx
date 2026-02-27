@@ -6,8 +6,11 @@ import { refuelsService } from '../../services/refuels';
 import { insuranceService, InsuranceRecord } from '../../services/insurance';
 import Card from '../../components/ui/Card';
 import Button from '../../components/ui/Button';
+import Input from '../../components/ui/Input';
+import Select from '../../components/ui/Select';
 import { format } from 'date-fns';
 import { fr } from 'date-fns/locale';
+import { BRAND_LIST, BRAND_MODELS } from '../../data/vehicleBrands';
 
 function formatCurrency(value: number) {
   return new Intl.NumberFormat('fr-FR', { style: 'currency', currency: 'EUR' }).format(value);
@@ -23,6 +26,17 @@ const INSURANCE_TYPE_LABELS: Record<string, string> = {
   SEMESTRIEL: 'Semestriel',
   ANNUEL: 'Annuel',
 };
+
+const brandOptions = BRAND_LIST.map((b) => ({ value: b, label: b }));
+
+const fuelTypeOptions = [
+  { value: 'SP95', label: 'Sans Plomb 95' },
+  { value: 'SP98', label: 'Sans Plomb 98' },
+  { value: 'E10', label: 'E10' },
+  { value: 'E85', label: 'E85 (Éthanol)' },
+  { value: 'DIESEL', label: 'Diesel' },
+  { value: 'ELECTRIC', label: 'Électrique' },
+];
 
 export default function VehicleDetailPage() {
   const { id } = useParams<{ id: string }>();
@@ -41,6 +55,18 @@ export default function VehicleDetailPage() {
   const [insInsurer, setInsInsurer] = useState('');
   const [insNotes, setInsNotes] = useState('');
   const [editingInsId, setEditingInsId] = useState<string | null>(null);
+
+  // Edit vehicle state
+  const [showEditForm, setShowEditForm] = useState(false);
+  const [editSelectedBrand, setEditSelectedBrand] = useState('');
+  const [editSelectedModel, setEditSelectedModel] = useState('');
+  const [editFormData, setEditFormData] = useState({
+    brand: '',
+    model: '',
+    fuelType: 'SP95',
+    year: '' as string | number,
+    co2PerKm: '' as string | number,
+  });
 
   const { data: vehicle, isLoading: vehicleLoading } = useQuery({
     queryKey: ['vehicles', id, 'stats'],
@@ -82,6 +108,15 @@ export default function VehicleDetailPage() {
       queryClient.invalidateQueries({ queryKey: ['refuels', id] });
       queryClient.invalidateQueries({ queryKey: ['vehicles', id, 'stats'] });
       setEditingRefuelId(null);
+    },
+  });
+
+  const updateVehicleMutation = useMutation({
+    mutationFn: (data: any) => vehiclesService.update(id!, data),
+    onSuccess: () => {
+      setShowEditForm(false);
+      queryClient.invalidateQueries({ queryKey: ['vehicles'] });
+      queryClient.invalidateQueries({ queryKey: ['vehicles', id, 'stats'] });
     },
   });
 
@@ -163,6 +198,41 @@ export default function VehicleDetailPage() {
     }
   };
 
+  const openEditForm = () => {
+    if (!vehicle) return;
+    const brand = vehicle.brand || '';
+    const model = vehicle.model || '';
+    const isBrandInList = BRAND_LIST.includes(brand) && brand !== 'Autre';
+    const isModelInList = isBrandInList && BRAND_MODELS[brand]?.includes(model);
+
+    setEditSelectedBrand(isBrandInList ? brand : 'Autre');
+    setEditSelectedModel(isModelInList ? model : (isBrandInList ? 'Autre' : ''));
+    setEditFormData({
+      brand,
+      model,
+      fuelType: vehicle.fuelType || 'SP95',
+      year: vehicle.year || '',
+      co2PerKm: vehicle.co2PerKm || '',
+    });
+    setShowEditForm(true);
+  };
+
+  const handleEditSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    const data: any = {
+      brand: editFormData.brand,
+      model: editFormData.model,
+      fuelType: editFormData.fuelType,
+    };
+    if (editFormData.year) data.year = Number(editFormData.year);
+    if (editFormData.co2PerKm) data.co2PerKm = Number(editFormData.co2PerKm);
+    updateVehicleMutation.mutate(data);
+  };
+
+  const editModelOptions = editSelectedBrand !== 'Autre' && BRAND_MODELS[editSelectedBrand]
+    ? [...BRAND_MODELS[editSelectedBrand].map((m) => ({ value: m, label: m })), { value: 'Autre', label: 'Autre' }]
+    : [];
+
   if (vehicleLoading) return <div className="text-center py-12 text-gray-500">Chargement...</div>;
   if (!vehicle) return <div className="text-center py-12 text-gray-500">Véhicule non trouvé</div>;
 
@@ -171,18 +241,130 @@ export default function VehicleDetailPage() {
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <Link to="/vehicles" className="text-sm text-gray-500 hover:text-gray-700 mb-2 inline-block">← Retour aux véhicules</Link>
+          <Link to="/vehicles" className="text-sm text-gray-500 hover:text-gray-700 mb-2 inline-block">&larr; Retour aux véhicules</Link>
           <h1 className="text-2xl font-bold text-gray-900">{vehicle.brand} {vehicle.model}</h1>
           <div className="flex items-center gap-2 mt-1">
             <span className="px-2 py-1 bg-primary-100 text-primary-700 text-xs font-medium rounded">{vehicle.fuelType}</span>
             {vehicle.year && <span className="text-gray-500 text-sm">{vehicle.year}</span>}
+            {vehicle.co2PerKm && <span className="text-gray-500 text-sm">{vehicle.co2PerKm} g CO2/km</span>}
           </div>
         </div>
         <div className="flex gap-3">
           <Link to={`/refuel/new?vehicleId=${id}`}><Button>+ Ajouter un plein</Button></Link>
+          <Button variant="secondary" onClick={openEditForm}>Modifier</Button>
           <Button variant="danger" onClick={handleDelete} isLoading={deleteMutation.isPending}>Supprimer</Button>
         </div>
       </div>
+
+      {/* Edit vehicle form */}
+      {showEditForm && (
+        <Card>
+          <h2 className="text-lg font-semibold text-gray-900 mb-4">Modifier le véhicule</h2>
+          <form onSubmit={handleEditSubmit} className="space-y-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <Select
+                id="editBrand"
+                label="Marque"
+                value={editSelectedBrand}
+                onChange={(e) => {
+                  const val = e.target.value;
+                  setEditSelectedBrand(val);
+                  setEditSelectedModel('');
+                  if (val !== 'Autre') {
+                    setEditFormData({ ...editFormData, brand: val, model: '' });
+                  } else {
+                    setEditFormData({ ...editFormData, brand: '', model: '' });
+                  }
+                }}
+                options={brandOptions}
+              />
+              {editSelectedBrand === 'Autre' && (
+                <Input
+                  id="editCustomBrand"
+                  label="Marque (autre)"
+                  value={editFormData.brand}
+                  onChange={(e) => setEditFormData({ ...editFormData, brand: e.target.value })}
+                  required
+                  placeholder="Saisir la marque"
+                />
+              )}
+              {editSelectedBrand !== 'Autre' && editModelOptions.length > 0 ? (
+                <>
+                  <Select
+                    id="editModel"
+                    label="Modèle"
+                    value={editSelectedModel}
+                    onChange={(e) => {
+                      const val = e.target.value;
+                      setEditSelectedModel(val);
+                      if (val !== 'Autre') {
+                        setEditFormData({ ...editFormData, model: val });
+                      } else {
+                        setEditFormData({ ...editFormData, model: '' });
+                      }
+                    }}
+                    options={[{ value: '', label: '-- Choisir un modèle --' }, ...editModelOptions]}
+                  />
+                  {editSelectedModel === 'Autre' && (
+                    <Input
+                      id="editCustomModel"
+                      label="Modèle (autre)"
+                      value={editFormData.model}
+                      onChange={(e) => setEditFormData({ ...editFormData, model: e.target.value })}
+                      required
+                      placeholder="Saisir le modèle"
+                    />
+                  )}
+                </>
+              ) : (
+                <Input
+                  id="editModel"
+                  label="Modèle"
+                  value={editFormData.model}
+                  onChange={(e) => setEditFormData({ ...editFormData, model: e.target.value })}
+                  required
+                  placeholder="Saisir le modèle"
+                />
+              )}
+              <Select
+                id="editFuelType"
+                label="Type de carburant"
+                value={editFormData.fuelType}
+                onChange={(e) => setEditFormData({ ...editFormData, fuelType: e.target.value })}
+                options={fuelTypeOptions}
+              />
+              <Input
+                id="editYear"
+                type="number"
+                label="Année (optionnel)"
+                value={editFormData.year}
+                onChange={(e) => setEditFormData({ ...editFormData, year: e.target.value })}
+                placeholder="Ex: 2020"
+                min={1900}
+                max={new Date().getFullYear() + 1}
+              />
+              <Input
+                id="editCo2"
+                type="number"
+                label="CO2 g/km (optionnel)"
+                value={editFormData.co2PerKm}
+                onChange={(e) => setEditFormData({ ...editFormData, co2PerKm: e.target.value })}
+                placeholder="Ex: 120"
+                min={0}
+                max={1000}
+              />
+            </div>
+            <div className="flex justify-end gap-3">
+              <Button type="button" variant="secondary" onClick={() => setShowEditForm(false)}>
+                Annuler
+              </Button>
+              <Button type="submit" isLoading={updateVehicleMutation.isPending}>
+                Sauvegarder
+              </Button>
+            </div>
+          </form>
+        </Card>
+      )}
 
       {/* Stats */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">

@@ -6,28 +6,9 @@ import Card from '../../components/ui/Card';
 import Button from '../../components/ui/Button';
 import Input from '../../components/ui/Input';
 import Select from '../../components/ui/Select';
+import { BRAND_LIST, BRAND_MODELS } from '../../data/vehicleBrands';
 
-const brandOptions = [
-  { value: 'Renault', label: 'Renault' },
-  { value: 'Peugeot', label: 'Peugeot' },
-  { value: 'Citroën', label: 'Citroën' },
-  { value: 'Dacia', label: 'Dacia' },
-  { value: 'Toyota', label: 'Toyota' },
-  { value: 'Volkswagen', label: 'Volkswagen' },
-  { value: 'Ford', label: 'Ford' },
-  { value: 'Audi', label: 'Audi' },
-  { value: 'BMW', label: 'BMW' },
-  { value: 'Mercedes', label: 'Mercedes' },
-  { value: 'Opel', label: 'Opel' },
-  { value: 'Fiat', label: 'Fiat' },
-  { value: 'Hyundai', label: 'Hyundai' },
-  { value: 'Kia', label: 'Kia' },
-  { value: 'Nissan', label: 'Nissan' },
-  { value: 'Seat', label: 'Seat' },
-  { value: 'Skoda', label: 'Skoda' },
-  { value: 'Volvo', label: 'Volvo' },
-  { value: 'Autre', label: 'Autre' },
-];
+const brandOptions = BRAND_LIST.map((b) => ({ value: b, label: b }));
 
 const fuelTypeOptions = [
   { value: 'SP95', label: 'Sans Plomb 95' },
@@ -42,6 +23,7 @@ export default function VehiclesPage() {
   const queryClient = useQueryClient();
   const [showForm, setShowForm] = useState(false);
   const [selectedBrand, setSelectedBrand] = useState('Renault');
+  const [selectedModel, setSelectedModel] = useState('');
   const [formData, setFormData] = useState<CreateVehicleData>({
     brand: 'Renault',
     model: '',
@@ -59,6 +41,7 @@ export default function VehiclesPage() {
       queryClient.invalidateQueries({ queryKey: ['vehicles'] });
       setShowForm(false);
       setSelectedBrand('Renault');
+      setSelectedModel('');
       setFormData({ brand: 'Renault', model: '', fuelType: 'SP95' });
     },
   });
@@ -67,6 +50,10 @@ export default function VehiclesPage() {
     e.preventDefault();
     createMutation.mutate(formData);
   };
+
+  const modelOptions = selectedBrand !== 'Autre' && BRAND_MODELS[selectedBrand]
+    ? [...BRAND_MODELS[selectedBrand].map((m) => ({ value: m, label: m })), { value: 'Autre', label: 'Autre' }]
+    : [];
 
   return (
     <div className="space-y-8">
@@ -94,10 +81,11 @@ export default function VehiclesPage() {
                 onChange={(e) => {
                   const val = e.target.value;
                   setSelectedBrand(val);
+                  setSelectedModel('');
                   if (val !== 'Autre') {
-                    setFormData({ ...formData, brand: val });
+                    setFormData({ ...formData, brand: val, model: '' });
                   } else {
-                    setFormData({ ...formData, brand: '' });
+                    setFormData({ ...formData, brand: '', model: '' });
                   }
                 }}
                 options={brandOptions}
@@ -112,14 +100,44 @@ export default function VehiclesPage() {
                   placeholder="Saisir la marque"
                 />
               )}
-              <Input
-                id="model"
-                label="Modèle"
-                value={formData.model}
-                onChange={(e) => setFormData({ ...formData, model: e.target.value })}
-                required
-                placeholder="Ex: Clio"
-              />
+              {selectedBrand !== 'Autre' && modelOptions.length > 0 ? (
+                <>
+                  <Select
+                    id="model"
+                    label="Modèle"
+                    value={selectedModel}
+                    onChange={(e) => {
+                      const val = e.target.value;
+                      setSelectedModel(val);
+                      if (val !== 'Autre') {
+                        setFormData({ ...formData, model: val });
+                      } else {
+                        setFormData({ ...formData, model: '' });
+                      }
+                    }}
+                    options={[{ value: '', label: '-- Choisir un modèle --' }, ...modelOptions]}
+                  />
+                  {selectedModel === 'Autre' && (
+                    <Input
+                      id="customModel"
+                      label="Modèle (autre)"
+                      value={formData.model}
+                      onChange={(e) => setFormData({ ...formData, model: e.target.value })}
+                      required
+                      placeholder="Saisir le modèle"
+                    />
+                  )}
+                </>
+              ) : (
+                <Input
+                  id="model"
+                  label="Modèle"
+                  value={formData.model}
+                  onChange={(e) => setFormData({ ...formData, model: e.target.value })}
+                  required
+                  placeholder="Ex: Clio"
+                />
+              )}
               <Select
                 id="fuelType"
                 label="Type de carburant"

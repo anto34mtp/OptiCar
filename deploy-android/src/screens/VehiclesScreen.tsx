@@ -14,14 +14,9 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Picker } from '@react-native-picker/picker';
 import { vehiclesService } from '../services/api';
+import { BRAND_LIST, BRAND_MODELS } from '../data/vehicleBrands';
 
 const fuelTypes = ['SP95', 'SP98', 'E10', 'E85', 'DIESEL', 'ELECTRIC'];
-
-const BRAND_LIST = [
-  'Renault', 'Peugeot', 'Citroën', 'Dacia', 'Toyota', 'Volkswagen',
-  'Ford', 'Audi', 'BMW', 'Mercedes', 'Opel', 'Fiat', 'Hyundai',
-  'Kia', 'Nissan', 'Seat', 'Skoda', 'Volvo', 'Autre',
-];
 
 export default function VehiclesScreen() {
   const navigation = useNavigation<any>();
@@ -29,6 +24,8 @@ export default function VehiclesScreen() {
   const [showModal, setShowModal] = useState(false);
   const [selectedBrand, setSelectedBrand] = useState('Renault');
   const [customBrand, setCustomBrand] = useState('');
+  const [selectedModel, setSelectedModel] = useState('');
+  const [customModel, setCustomModel] = useState('');
   const [formData, setFormData] = useState({
     brand: 'Renault',
     model: '',
@@ -42,6 +39,14 @@ export default function VehiclesScreen() {
     queryFn: vehiclesService.getAll,
   });
 
+  const resetForm = () => {
+    setSelectedBrand('Renault');
+    setCustomBrand('');
+    setSelectedModel('');
+    setCustomModel('');
+    setFormData({ brand: 'Renault', model: '', fuelType: 'SP95', year: '', co2PerKm: '' });
+  };
+
   const createMutation = useMutation({
     mutationFn: () =>
       vehiclesService.create({
@@ -54,14 +59,16 @@ export default function VehiclesScreen() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['vehicles'] });
       setShowModal(false);
-      setSelectedBrand('Renault');
-      setCustomBrand('');
-      setFormData({ brand: 'Renault', model: '', fuelType: 'SP95', year: '', co2PerKm: '' });
+      resetForm();
     },
     onError: () => {
       Alert.alert('Erreur', 'Impossible de créer le véhicule');
     },
   });
+
+  const modelOptions = selectedBrand !== 'Autre' && BRAND_MODELS[selectedBrand]
+    ? [...BRAND_MODELS[selectedBrand], 'Autre']
+    : [];
 
   return (
     <SafeAreaView style={styles.container}>
@@ -111,6 +118,7 @@ export default function VehiclesScreen() {
       {/* Add Vehicle Modal */}
       <Modal visible={showModal} animationType="slide" transparent>
         <View style={styles.modalOverlay}>
+          <ScrollView>
           <View style={styles.modalContent}>
             <Text style={styles.modalTitle}>Nouveau véhicule</Text>
 
@@ -120,11 +128,13 @@ export default function VehiclesScreen() {
                 selectedValue={selectedBrand}
                 onValueChange={(value) => {
                   setSelectedBrand(value);
+                  setSelectedModel('');
+                  setCustomModel('');
                   if (value !== 'Autre') {
-                    setFormData({ ...formData, brand: value });
+                    setFormData({ ...formData, brand: value, model: '' });
                     setCustomBrand('');
                   } else {
-                    setFormData({ ...formData, brand: customBrand });
+                    setFormData({ ...formData, brand: customBrand, model: '' });
                   }
                 }}
               >
@@ -146,13 +156,50 @@ export default function VehiclesScreen() {
               />
             )}
 
-            <TextInput
-              style={styles.input}
-              placeholder="Modèle"
-              value={formData.model}
-              onChangeText={(text) => setFormData({ ...formData, model: text })}
-            />
+            <Text style={styles.fieldLabel}>Modèle</Text>
+            {selectedBrand !== 'Autre' && modelOptions.length > 0 ? (
+              <>
+                <View style={styles.pickerContainer}>
+                  <Picker
+                    selectedValue={selectedModel}
+                    onValueChange={(value) => {
+                      setSelectedModel(value);
+                      if (value !== 'Autre') {
+                        setFormData({ ...formData, model: value });
+                        setCustomModel('');
+                      } else {
+                        setFormData({ ...formData, model: customModel });
+                      }
+                    }}
+                  >
+                    <Picker.Item label="-- Choisir un modèle --" value="" />
+                    {modelOptions.map((m) => (
+                      <Picker.Item key={m} label={m} value={m} />
+                    ))}
+                  </Picker>
+                </View>
+                {selectedModel === 'Autre' && (
+                  <TextInput
+                    style={styles.input}
+                    placeholder="Saisir le modèle"
+                    value={customModel}
+                    onChangeText={(text) => {
+                      setCustomModel(text);
+                      setFormData({ ...formData, model: text });
+                    }}
+                  />
+                )}
+              </>
+            ) : (
+              <TextInput
+                style={styles.input}
+                placeholder="Saisir le modèle"
+                value={formData.model}
+                onChangeText={(text) => setFormData({ ...formData, model: text })}
+              />
+            )}
 
+            <Text style={styles.fieldLabel}>Carburant</Text>
             <View style={styles.pickerContainer}>
               <Picker
                 selectedValue={formData.fuelType}
@@ -198,6 +245,7 @@ export default function VehiclesScreen() {
               </TouchableOpacity>
             </View>
           </View>
+          </ScrollView>
         </View>
       </Modal>
     </SafeAreaView>

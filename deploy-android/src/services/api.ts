@@ -93,6 +93,11 @@ export const vehiclesService = {
     return response.data;
   },
 
+  async update(id: string, data: Partial<{ brand: string; model: string; fuelType: string; year: number; co2PerKm: number }>) {
+    const response = await api.patch(`/vehicles/${id}`, data);
+    return response.data;
+  },
+
   async delete(id: string) {
     await api.delete(`/vehicles/${id}`);
   },

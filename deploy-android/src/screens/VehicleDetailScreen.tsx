@@ -6,11 +6,16 @@ import {
   TouchableOpacity,
   Alert,
   TextInput,
+  Modal,
 } from 'react-native';
 import { useState } from 'react';
 import { useRoute, useNavigation } from '@react-navigation/native';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { Picker } from '@react-native-picker/picker';
 import { vehiclesService, refuelsService, refuelsExtService } from '../services/api';
+import { BRAND_LIST, BRAND_MODELS } from '../data/vehicleBrands';
+
+const fuelTypes = ['SP95', 'SP98', 'E10', 'E85', 'DIESEL', 'ELECTRIC'];
 
 function formatCurrency(value: number) {
   return new Intl.NumberFormat('fr-FR', {
@@ -30,6 +35,20 @@ export default function VehicleDetailScreen() {
   const { id } = route.params;
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editForm, setEditForm] = useState<any>({});
+
+  // Edit vehicle state
+  const [showEditModal, setShowEditModal] = useState(false);
+  const [editSelectedBrand, setEditSelectedBrand] = useState('');
+  const [editCustomBrand, setEditCustomBrand] = useState('');
+  const [editSelectedModel, setEditSelectedModel] = useState('');
+  const [editCustomModel, setEditCustomModel] = useState('');
+  const [editVehicleForm, setEditVehicleForm] = useState({
+    brand: '',
+    model: '',
+    fuelType: 'SP95',
+    year: '',
+    co2PerKm: '',
+  });
 
   const { data: vehicle, isLoading: vehicleLoading } = useQuery({
     queryKey: ['vehicles', id, 'stats'],
@@ -67,6 +86,18 @@ export default function VehicleDetailScreen() {
     },
   });
 
+  const updateVehicleMutation = useMutation({
+    mutationFn: (data: any) => vehiclesService.update(id, data),
+    onSuccess: () => {
+      setShowEditModal(false);
+      queryClient.invalidateQueries({ queryKey: ['vehicles'] });
+      queryClient.invalidateQueries({ queryKey: ['vehicles', id, 'stats'] });
+    },
+    onError: () => {
+      Alert.alert('Erreur', 'Impossible de modifier le véhicule');
+    },
+  });
+
   const handleDelete = () => {
     Alert.alert(
       'Supprimer le véhicule',
@@ -84,6 +115,41 @@ export default function VehicleDetailScreen() {
       { text: 'Supprimer', style: 'destructive', onPress: () => deleteRefuelMutation.mutate(refuelId) },
     ]);
   };
+
+  const openEditModal = () => {
+    const brand = vehicle?.brand || '';
+    const model = vehicle?.model || '';
+    const isBrandInList = BRAND_LIST.includes(brand) && brand !== 'Autre';
+    const isModelInList = isBrandInList && BRAND_MODELS[brand]?.includes(model);
+
+    setEditSelectedBrand(isBrandInList ? brand : 'Autre');
+    setEditCustomBrand(isBrandInList ? '' : brand);
+    setEditSelectedModel(isModelInList ? model : (isBrandInList ? 'Autre' : ''));
+    setEditCustomModel(isModelInList ? '' : model);
+    setEditVehicleForm({
+      brand,
+      model,
+      fuelType: vehicle?.fuelType || 'SP95',
+      year: vehicle?.year ? String(vehicle.year) : '',
+      co2PerKm: vehicle?.co2PerKm ? String(vehicle.co2PerKm) : '',
+    });
+    setShowEditModal(true);
+  };
+
+  const handleSaveVehicle = () => {
+    const data: any = {
+      brand: editVehicleForm.brand,
+      model: editVehicleForm.model,
+      fuelType: editVehicleForm.fuelType,
+    };
+    if (editVehicleForm.year) data.year = parseInt(editVehicleForm.year);
+    if (editVehicleForm.co2PerKm) data.co2PerKm = parseInt(editVehicleForm.co2PerKm);
+    updateVehicleMutation.mutate(data);
+  };
+
+  const editModelOptions = editSelectedBrand !== 'Autre' && BRAND_MODELS[editSelectedBrand]
+    ? [...BRAND_MODELS[editSelectedBrand], 'Autre']
+    : [];
 
   if (vehicleLoading) {
     return (
@@ -106,6 +172,9 @@ export default function VehicleDetailScreen() {
           </View>
           {vehicle?.year && (
             <Text style={styles.year}>{vehicle.year}</Text>
+          )}
+          {vehicle?.co2PerKm && (
+            <Text style={styles.year}>{vehicle.co2PerKm} g CO2/km</Text>
           )}
         </View>
       </View>
@@ -154,6 +223,11 @@ export default function VehicleDetailScreen() {
         >
           <Text style={styles.addButtonText}>+ Ajouter un plein</Text>
         </TouchableOpacity>
+        <TouchableOpacity style={styles.editButton} onPress={openEditModal}>
+          <Text style={styles.editButtonText}>Modifier</Text>
+        </TouchableOpacity>
+      </View>
+      <View style={styles.actions}>
         <TouchableOpacity
           style={styles.insuranceButton}
           onPress={() => navigation.navigate('Insurance', { vehicleId: id, vehicleName: `${vehicle?.brand} ${vehicle?.model}` })}
@@ -267,6 +341,140 @@ export default function VehicleDetailScreen() {
           ))
         )}
       </View>
+
+      {/* Edit Vehicle Modal */}
+      <Modal visible={showEditModal} animationType="slide" transparent>
+        <View style={styles.modalOverlay}>
+          <ScrollView>
+          <View style={styles.modalContent}>
+            <Text style={styles.modalTitle}>Modifier le véhicule</Text>
+
+            <Text style={styles.fieldLabel}>Marque</Text>
+            <View style={styles.pickerContainer}>
+              <Picker
+                selectedValue={editSelectedBrand}
+                onValueChange={(value) => {
+                  setEditSelectedBrand(value);
+                  setEditSelectedModel('');
+                  setEditCustomModel('');
+                  if (value !== 'Autre') {
+                    setEditVehicleForm({ ...editVehicleForm, brand: value, model: '' });
+                    setEditCustomBrand('');
+                  } else {
+                    setEditVehicleForm({ ...editVehicleForm, brand: editCustomBrand, model: '' });
+                  }
+                }}
+              >
+                {BRAND_LIST.map((b) => (
+                  <Picker.Item key={b} label={b} value={b} />
+                ))}
+              </Picker>
+            </View>
+
+            {editSelectedBrand === 'Autre' && (
+              <TextInput
+                style={styles.input}
+                placeholder="Saisir la marque"
+                value={editCustomBrand}
+                onChangeText={(text) => {
+                  setEditCustomBrand(text);
+                  setEditVehicleForm({ ...editVehicleForm, brand: text });
+                }}
+              />
+            )}
+
+            <Text style={styles.fieldLabel}>Modèle</Text>
+            {editSelectedBrand !== 'Autre' && editModelOptions.length > 0 ? (
+              <>
+                <View style={styles.pickerContainer}>
+                  <Picker
+                    selectedValue={editSelectedModel}
+                    onValueChange={(value) => {
+                      setEditSelectedModel(value);
+                      if (value !== 'Autre') {
+                        setEditVehicleForm({ ...editVehicleForm, model: value });
+                        setEditCustomModel('');
+                      } else {
+                        setEditVehicleForm({ ...editVehicleForm, model: editCustomModel });
+                      }
+                    }}
+                  >
+                    <Picker.Item label="-- Choisir un modèle --" value="" />
+                    {editModelOptions.map((m) => (
+                      <Picker.Item key={m} label={m} value={m} />
+                    ))}
+                  </Picker>
+                </View>
+                {editSelectedModel === 'Autre' && (
+                  <TextInput
+                    style={styles.input}
+                    placeholder="Saisir le modèle"
+                    value={editCustomModel}
+                    onChangeText={(text) => {
+                      setEditCustomModel(text);
+                      setEditVehicleForm({ ...editVehicleForm, model: text });
+                    }}
+                  />
+                )}
+              </>
+            ) : (
+              <TextInput
+                style={styles.input}
+                placeholder="Saisir le modèle"
+                value={editVehicleForm.model}
+                onChangeText={(text) => setEditVehicleForm({ ...editVehicleForm, model: text })}
+              />
+            )}
+
+            <Text style={styles.fieldLabel}>Carburant</Text>
+            <View style={styles.pickerContainer}>
+              <Picker
+                selectedValue={editVehicleForm.fuelType}
+                onValueChange={(value) => setEditVehicleForm({ ...editVehicleForm, fuelType: value })}
+              >
+                {fuelTypes.map((type) => (
+                  <Picker.Item key={type} label={type} value={type} />
+                ))}
+              </Picker>
+            </View>
+
+            <TextInput
+              style={styles.input}
+              placeholder="Année (optionnel)"
+              value={editVehicleForm.year}
+              onChangeText={(text) => setEditVehicleForm({ ...editVehicleForm, year: text })}
+              keyboardType="numeric"
+            />
+
+            <TextInput
+              style={styles.input}
+              placeholder="CO2 g/km (optionnel, ex: 120)"
+              value={editVehicleForm.co2PerKm}
+              onChangeText={(text) => setEditVehicleForm({ ...editVehicleForm, co2PerKm: text })}
+              keyboardType="numeric"
+            />
+
+            <View style={styles.modalButtons}>
+              <TouchableOpacity
+                style={styles.cancelBtn}
+                onPress={() => setShowEditModal(false)}
+              >
+                <Text style={styles.cancelBtnText}>Annuler</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={styles.saveButton}
+                onPress={handleSaveVehicle}
+                disabled={!editVehicleForm.brand || !editVehicleForm.model}
+              >
+                <Text style={styles.saveButtonText}>
+                  {updateVehicleMutation.isPending ? 'Sauvegarde...' : 'Sauvegarder'}
+                </Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+          </ScrollView>
+        </View>
+      </Modal>
     </ScrollView>
   );
 }
@@ -287,10 +495,12 @@ const styles = StyleSheet.create({
   statCard: { backgroundColor: 'white', borderRadius: 12, padding: 16, width: '47%' },
   statLabel: { fontSize: 12, color: '#6b7280' },
   statValue: { fontSize: 18, fontWeight: 'bold', color: '#111827', marginTop: 4 },
-  actions: { flexDirection: 'row', padding: 20, gap: 12 },
+  actions: { flexDirection: 'row', paddingHorizontal: 20, paddingVertical: 6, gap: 12 },
   addButton: { flex: 1, backgroundColor: '#3b82f6', padding: 16, borderRadius: 12, alignItems: 'center' },
   addButtonText: { color: 'white', fontWeight: '600' },
-  insuranceButton: { backgroundColor: '#f3e8ff', padding: 16, borderRadius: 12, alignItems: 'center' },
+  editButton: { backgroundColor: '#dbeafe', padding: 16, borderRadius: 12, alignItems: 'center', borderWidth: 1, borderColor: '#3b82f6' },
+  editButtonText: { color: '#3b82f6', fontWeight: '600' },
+  insuranceButton: { flex: 1, backgroundColor: '#f3e8ff', padding: 16, borderRadius: 12, alignItems: 'center' },
   insuranceButtonText: { color: '#7c3aed', fontWeight: '600' },
   deleteButton: { backgroundColor: '#fee2e2', padding: 16, borderRadius: 12, alignItems: 'center' },
   deleteButtonText: { color: '#dc2626', fontWeight: '600' },
@@ -314,4 +524,16 @@ const styles = StyleSheet.create({
   saveBtn: { backgroundColor: '#3b82f6', paddingHorizontal: 16, paddingVertical: 8, borderRadius: 6 },
   saveBtnText: { color: '#fff', fontWeight: '600', fontSize: 13 },
   cancelText: { color: '#6b7280', fontSize: 13, paddingVertical: 8 },
+  // Edit vehicle modal styles
+  modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'flex-end' },
+  modalContent: { backgroundColor: 'white', borderTopLeftRadius: 20, borderTopRightRadius: 20, padding: 24 },
+  modalTitle: { fontSize: 20, fontWeight: 'bold', color: '#111827', marginBottom: 20 },
+  fieldLabel: { fontSize: 14, fontWeight: '500', color: '#374151', marginBottom: 4 },
+  input: { backgroundColor: '#f3f4f6', borderRadius: 12, padding: 16, fontSize: 16, marginBottom: 12 },
+  pickerContainer: { backgroundColor: '#f3f4f6', borderRadius: 12, marginBottom: 12 },
+  modalButtons: { flexDirection: 'row', gap: 12, marginTop: 8 },
+  cancelBtn: { flex: 1, padding: 16, borderRadius: 12, backgroundColor: '#e5e7eb', alignItems: 'center' },
+  cancelBtnText: { color: '#374151', fontWeight: '600' },
+  saveButton: { flex: 1, padding: 16, borderRadius: 12, backgroundColor: '#3b82f6', alignItems: 'center' },
+  saveButtonText: { color: 'white', fontWeight: '600' },
 });

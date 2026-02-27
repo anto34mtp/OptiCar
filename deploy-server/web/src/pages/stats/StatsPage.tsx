@@ -230,11 +230,11 @@ export default function StatsPage() {
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-            <Card className="bg-emerald-600 text-white">
+            <div className="bg-emerald-600 text-white rounded-xl shadow-sm p-6">
               <p className="text-emerald-100 text-sm font-medium">Emissions totales</p>
               <p className="text-3xl font-bold mt-1">{formatKg(co2Data.totalCo2Grams)}</p>
               <p className="text-emerald-200 text-sm mt-1">CO2</p>
-            </Card>
+            </div>
           </div>
 
           {/* CO2 Monthly chart */}

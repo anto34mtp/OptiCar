@@ -91,7 +91,7 @@ android {
         applicationId 'com.historiquevoiture.app'
         minSdkVersion rootProject.ext.minSdkVersion
         targetSdkVersion rootProject.ext.targetSdkVersion
-        versionCode 5
+        versionCode 8
         versionName "2.2"
     }
     signingConfigs {

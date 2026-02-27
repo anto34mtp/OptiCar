@@ -1,35 +1,35 @@
 {
   "expo": {
-    "name": "OptiCar DEV",
-    "slug": "opticar-dev",
-    "version": "2.1",
+    "name": "OptiCar",
+    "slug": "opticar",
+    "version": "2.2",
     "orientation": "portrait",
     "userInterfaceStyle": "light",
     "icon": "./logo.png",
     "splash": {
       "image": "./logo.png",
       "resizeMode": "contain",
-      "backgroundColor": "#e85d04"
+      "backgroundColor": "#1a56a8"
     },
     "assetBundlePatterns": [
       "**/*"
     ],
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "com.opticar.dev"
+      "bundleIdentifier": "com.opticar.app"
     },
     "android": {
       "adaptiveIcon": {
         "foregroundImage": "./logo.png",
-        "backgroundColor": "#e85d04"
+        "backgroundColor": "#1a56a8"
       },
-      "package": "com.opticar.dev",
+      "package": "com.opticar.app",
       "permissions": [
         "android.permission.CAMERA",
         "android.permission.RECORD_AUDIO"
       ],
       "targetSdkVersion": 35,
-      "versionCode": 1
+      "versionCode": 4
     },
     "plugins": [
       [
@@ -46,11 +46,11 @@
       ],
       "expo-notifications"
     ],
-    "scheme": "opticar-dev",
+    "scheme": "opticar",
     "owner": "crawgamers",
     "extra": {
       "eas": {
-        "projectId": "c280b030-40d0-406d-8929-da3e2afe4b69"
+        "projectId": "185b4a15-c220-40b3-91f1-0e5f68c0dd02"
       }
     }
   }

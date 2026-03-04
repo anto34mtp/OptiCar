@@ -19,6 +19,7 @@ import AddMaintenanceScreen from '../screens/AddMaintenanceScreen';
 import MaintenanceRulesScreen from '../screens/MaintenanceRulesScreen';
 import InsuranceScreen from '../screens/InsuranceScreen';
 import TotalCostsScreen from '../screens/TotalCostsScreen';
+import ForgotPasswordScreen from '../screens/ForgotPasswordScreen';
 
 const Stack = createNativeStackNavigator();
 const Tab = createBottomTabNavigator();
@@ -98,6 +99,11 @@ export default function RootNavigator() {
         <>
           <Stack.Screen name="Login" component={LoginScreen} />
           <Stack.Screen name="Register" component={RegisterScreen} />
+          <Stack.Screen
+            name="ForgotPassword"
+            component={ForgotPasswordScreen}
+            options={{ headerShown: true, title: 'Mot de passe oublié' }}
+          />
         </>
       ) : (
         <>

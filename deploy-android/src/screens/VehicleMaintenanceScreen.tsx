@@ -156,9 +156,9 @@ export default function VehicleMaintenanceScreen({ route, navigation }: any) {
         <Text style={styles.notifText}>Notifications ce véhicule</Text>
         <Switch
           value={isVehicleEnabled(vehicleId)}
-          onValueChange={(val) => {
-            setVehicleEnabled(vehicleId, val);
-            if (val) checkAndScheduleNotifications();
+          onValueChange={async (val) => {
+            await setVehicleEnabled(vehicleId, val);
+            await checkAndScheduleNotifications();
           }}
           trackColor={{ true: '#3b82f6' }}
         />
@@ -187,9 +187,9 @@ export default function VehicleMaintenanceScreen({ route, navigation }: any) {
                       <Text style={styles.gaugeName}>{PART_TYPE_LABELS[s.partType] || s.partType}</Text>
                       <Switch
                         value={isPartTypeEnabled(vehicleId, s.partType)}
-                        onValueChange={(val) => {
-                          setPartTypeEnabled(vehicleId, s.partType, val);
-                          if (val) checkAndScheduleNotifications();
+                        onValueChange={async (val) => {
+                          await setPartTypeEnabled(vehicleId, s.partType, val);
+                          await checkAndScheduleNotifications();
                         }}
                         trackColor={{ true: '#3b82f6' }}
                         style={styles.partTypeSwitch}

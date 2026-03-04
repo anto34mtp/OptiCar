@@ -229,6 +229,12 @@ export default function VehicleDetailScreen() {
       </View>
       <View style={styles.actions}>
         <TouchableOpacity
+          style={styles.maintenanceButton}
+          onPress={() => navigation.navigate('VehicleMaintenance', { vehicleId: id, vehicleName: `${vehicle?.brand} ${vehicle?.model}` })}
+        >
+          <Text style={styles.maintenanceButtonText}>Entretiens</Text>
+        </TouchableOpacity>
+        <TouchableOpacity
           style={styles.insuranceButton}
           onPress={() => navigation.navigate('Insurance', { vehicleId: id, vehicleName: `${vehicle?.brand} ${vehicle?.model}` })}
         >
@@ -500,6 +506,8 @@ const styles = StyleSheet.create({
   addButtonText: { color: 'white', fontWeight: '600' },
   editButton: { backgroundColor: '#dbeafe', padding: 16, borderRadius: 12, alignItems: 'center', borderWidth: 1, borderColor: '#3b82f6' },
   editButtonText: { color: '#3b82f6', fontWeight: '600' },
+  maintenanceButton: { flex: 1, backgroundColor: '#ecfdf5', padding: 16, borderRadius: 12, alignItems: 'center' },
+  maintenanceButtonText: { color: '#059669', fontWeight: '600' },
   insuranceButton: { flex: 1, backgroundColor: '#f3e8ff', padding: 16, borderRadius: 12, alignItems: 'center' },
   insuranceButtonText: { color: '#7c3aed', fontWeight: '600' },
   deleteButton: { backgroundColor: '#fee2e2', padding: 16, borderRadius: 12, alignItems: 'center' },

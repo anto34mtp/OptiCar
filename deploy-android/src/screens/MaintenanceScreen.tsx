@@ -94,9 +94,9 @@ export default function MaintenanceScreen({ navigation }: any) {
         <Text style={styles.notifText}>Notifications entretien</Text>
         <Switch
           value={globalEnabled}
-          onValueChange={(val) => {
-            setGlobalEnabled(val);
-            if (val) checkAndScheduleNotifications();
+          onValueChange={async (val) => {
+            await setGlobalEnabled(val);
+            await checkAndScheduleNotifications();
           }}
           trackColor={{ true: '#3b82f6' }}
         />

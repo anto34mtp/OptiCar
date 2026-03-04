@@ -69,6 +69,11 @@ export const authService = {
     const response = await api.post('/auth/register', { email, password, name });
     return response.data;
   },
+
+  async forgotPassword(email: string) {
+    const response = await api.post('/auth/forgot-password', { email });
+    return response.data;
+  },
 };
 
 // Vehicles service

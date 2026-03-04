@@ -250,6 +250,7 @@ export default function VehicleDetailPage() {
           </div>
         </div>
         <div className="flex gap-3">
+          <Link to={`/maintenance/${id}`}><Button variant="secondary">Entretiens</Button></Link>
           <Link to={`/refuel/new?vehicleId=${id}`}><Button>+ Ajouter un plein</Button></Link>
           <Button variant="secondary" onClick={openEditForm}>Modifier</Button>
           <Button variant="danger" onClick={handleDelete} isLoading={deleteMutation.isPending}>Supprimer</Button>

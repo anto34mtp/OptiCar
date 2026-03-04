@@ -179,16 +179,86 @@ export default function VehicleMaintenancePage() {
         </div>
       ) : (
         <div className="space-y-8">
-          {/* Wear gauges by category */}
+          {/* Wear gauges by category + history under each partType */}
           {Object.entries(byCategory).map(([category, items]) => (
             <div key={category}>
               <h2 className="text-lg font-semibold text-gray-800 mb-3">
                 {CATEGORY_LABELS[category] || category}
               </h2>
-              <div className="grid gap-3 md:grid-cols-2 lg:grid-cols-3">
-                {items.map((s) => (
-                  <WearGauge key={s.ruleId} status={s} />
-                ))}
+              <div className="space-y-3">
+                {items.map((s) => {
+                  const partRecords = (records || []).filter((r) => r.partType === s.partType);
+                  return (
+                    <div key={s.ruleId}>
+                      <WearGauge status={s} />
+                      {partRecords.length > 0 && (
+                        <div className="bg-gray-50 rounded-b-lg border border-t-0 border-gray-200 px-4 py-2">
+                          <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-2">Historique</p>
+                          <table className="w-full text-xs">
+                            <tbody className="divide-y divide-gray-100">
+                              {partRecords.map((r) => (
+                                <tr key={r.id}>
+                                  {editingRecord === r.id ? (
+                                    <>
+                                      <td className="py-1.5">
+                                        <input
+                                          type="date"
+                                          className="border rounded px-2 py-1 text-xs w-28"
+                                          value={editForm.date?.split('T')[0] || ''}
+                                          onChange={(e) => setEditForm({ ...editForm, date: e.target.value })}
+                                        />
+                                      </td>
+                                      <td className="py-1.5">
+                                        <input
+                                          type="number"
+                                          className="border rounded px-2 py-1 text-xs w-20"
+                                          value={editForm.mileage || ''}
+                                          onChange={(e) => setEditForm({ ...editForm, mileage: Number(e.target.value) })}
+                                        />
+                                      </td>
+                                      <td className="py-1.5">
+                                        <input
+                                          type="number"
+                                          step="0.01"
+                                          className="border rounded px-2 py-1 text-xs w-20"
+                                          value={editForm.price ?? ''}
+                                          onChange={(e) => setEditForm({ ...editForm, price: Number(e.target.value) })}
+                                        />
+                                      </td>
+                                      <td className="py-1.5">
+                                        <input
+                                          type="text"
+                                          className="border rounded px-2 py-1 text-xs w-24"
+                                          value={editForm.garage || ''}
+                                          onChange={(e) => setEditForm({ ...editForm, garage: e.target.value })}
+                                        />
+                                      </td>
+                                      <td className="py-1.5 text-right space-x-2">
+                                        <button className="text-green-600 hover:underline" onClick={() => updateMutation.mutate({ id: r.id, data: { ...editForm, date: editForm.date ? new Date(editForm.date).toISOString() : undefined } })}>Sauver</button>
+                                        <button className="text-gray-500 hover:underline" onClick={() => setEditingRecord(null)}>Annuler</button>
+                                      </td>
+                                    </>
+                                  ) : (
+                                    <>
+                                      <td className="py-1.5 text-gray-600">{new Date(r.date).toLocaleDateString('fr-FR')}</td>
+                                      <td className="py-1.5 text-gray-600">{r.mileage.toLocaleString()} km</td>
+                                      <td className="py-1.5 text-gray-600">{r.price !== null ? formatCurrency(r.price) : '—'}</td>
+                                      <td className="py-1.5 text-gray-600">{r.garage || '—'}</td>
+                                      <td className="py-1.5 text-right space-x-2">
+                                        <button className="text-blue-600 hover:underline" onClick={() => { setEditingRecord(r.id); setEditForm({ date: r.date, mileage: r.mileage, price: r.price, garage: r.garage }); }}>Modifier</button>
+                                        <button className="text-red-600 hover:underline" onClick={() => { if (confirm('Supprimer ?')) deleteMutation.mutate(r.id); }}>Supprimer</button>
+                                      </td>
+                                    </>
+                                  )}
+                                </tr>
+                              ))}
+                            </tbody>
+                          </table>
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
               </div>
             </div>
           ))}
@@ -275,124 +345,56 @@ export default function VehicleMaintenancePage() {
             </div>
           )}
 
-          {/* Maintenance records history */}
-          {records && records.length > 0 && (
-            <div>
-              <h2 className="text-lg font-semibold text-gray-800 mb-3">Historique des entretiens</h2>
-              <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
-                <table className="w-full text-sm">
-                  <thead className="bg-gray-50">
-                    <tr>
-                      <th className="text-left px-4 py-3 font-medium text-gray-600">Date</th>
-                      <th className="text-left px-4 py-3 font-medium text-gray-600">Pièce</th>
-                      <th className="text-left px-4 py-3 font-medium text-gray-600">Kilométrage</th>
-                      <th className="text-left px-4 py-3 font-medium text-gray-600">Prix</th>
-                      <th className="text-left px-4 py-3 font-medium text-gray-600">Garage</th>
-                      <th className="text-right px-4 py-3 font-medium text-gray-600">Actions</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-gray-100">
-                    {records.map((r: MaintenanceRecord) => (
-                      <tr key={r.id}>
-                        {editingRecord === r.id ? (
-                          <>
-                            <td className="px-4 py-2">
-                              <input
-                                type="date"
-                                className="border rounded px-2 py-1 text-sm w-32"
-                                value={editForm.date?.split('T')[0] || ''}
-                                onChange={(e) => setEditForm({ ...editForm, date: e.target.value })}
-                              />
-                            </td>
-                            <td className="px-4 py-2">{PART_TYPE_LABELS[r.partType] || r.partType}</td>
-                            <td className="px-4 py-2">
-                              <input
-                                type="number"
-                                className="border rounded px-2 py-1 text-sm w-24"
-                                value={editForm.mileage || ''}
-                                onChange={(e) => setEditForm({ ...editForm, mileage: Number(e.target.value) })}
-                              />
-                            </td>
-                            <td className="px-4 py-2">
-                              <input
-                                type="number"
-                                step="0.01"
-                                className="border rounded px-2 py-1 text-sm w-24"
-                                value={editForm.price ?? ''}
-                                onChange={(e) => setEditForm({ ...editForm, price: Number(e.target.value) })}
-                              />
-                            </td>
-                            <td className="px-4 py-2">
-                              <input
-                                type="text"
-                                className="border rounded px-2 py-1 text-sm w-28"
-                                value={editForm.garage || ''}
-                                onChange={(e) => setEditForm({ ...editForm, garage: e.target.value })}
-                              />
-                            </td>
-                            <td className="px-4 py-2 text-right space-x-2">
-                              <button
-                                className="text-green-600 hover:underline text-xs"
-                                onClick={() => updateMutation.mutate({
-                                  id: r.id,
-                                  data: {
-                                    ...editForm,
-                                    date: editForm.date ? new Date(editForm.date).toISOString() : undefined,
-                                  },
-                                })}
-                              >
-                                Sauver
-                              </button>
-                              <button
-                                className="text-gray-500 hover:underline text-xs"
-                                onClick={() => setEditingRecord(null)}
-                              >
-                                Annuler
-                              </button>
-                            </td>
-                          </>
-                        ) : (
-                          <>
-                            <td className="px-4 py-3">{new Date(r.date).toLocaleDateString('fr-FR')}</td>
-                            <td className="px-4 py-3">{PART_TYPE_LABELS[r.partType] || r.partType}</td>
-                            <td className="px-4 py-3">{r.mileage.toLocaleString()} km</td>
-                            <td className="px-4 py-3">{r.price !== null ? formatCurrency(r.price) : '—'}</td>
-                            <td className="px-4 py-3">{r.garage || '—'}</td>
-                            <td className="px-4 py-3 text-right space-x-2">
-                              <button
-                                className="text-blue-600 hover:underline text-xs"
-                                onClick={() => {
-                                  setEditingRecord(r.id);
-                                  setEditForm({
-                                    date: r.date,
-                                    mileage: r.mileage,
-                                    price: r.price,
-                                    garage: r.garage,
-                                  });
-                                }}
-                              >
-                                Modifier
-                              </button>
-                              <button
-                                className="text-red-600 hover:underline text-xs"
-                                onClick={() => {
-                                  if (confirm('Supprimer cet entretien ?')) {
-                                    deleteMutation.mutate(r.id);
-                                  }
-                                }}
-                              >
-                                Supprimer
-                              </button>
-                            </td>
-                          </>
-                        )}
+          {/* Orphan records (partType not in any rule) */}
+          {(() => {
+            const rulePartTypes = new Set((statuses || []).map((s) => s.partType));
+            const orphans = (records || []).filter((r) => !rulePartTypes.has(r.partType));
+            if (!orphans.length) return null;
+            return (
+              <div>
+                <h2 className="text-lg font-semibold text-gray-800 mb-3">Autres entretiens</h2>
+                <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
+                  <table className="w-full text-sm">
+                    <thead className="bg-gray-50">
+                      <tr>
+                        <th className="text-left px-4 py-3 font-medium text-gray-600">Date</th>
+                        <th className="text-left px-4 py-3 font-medium text-gray-600">Pièce</th>
+                        <th className="text-left px-4 py-3 font-medium text-gray-600">Kilométrage</th>
+                        <th className="text-left px-4 py-3 font-medium text-gray-600">Prix</th>
+                        <th className="text-left px-4 py-3 font-medium text-gray-600">Garage</th>
+                        <th className="text-right px-4 py-3 font-medium text-gray-600">Actions</th>
                       </tr>
-                    ))}
-                  </tbody>
-                </table>
+                    </thead>
+                    <tbody className="divide-y divide-gray-100">
+                      {orphans.map((r: MaintenanceRecord) => (
+                        <tr key={r.id}>
+                          <td className="px-4 py-3">{new Date(r.date).toLocaleDateString('fr-FR')}</td>
+                          <td className="px-4 py-3">{PART_TYPE_LABELS[r.partType] || r.partType}</td>
+                          <td className="px-4 py-3">{r.mileage.toLocaleString()} km</td>
+                          <td className="px-4 py-3">{r.price !== null ? formatCurrency(r.price) : '—'}</td>
+                          <td className="px-4 py-3">{r.garage || '—'}</td>
+                          <td className="px-4 py-3 text-right space-x-2">
+                            <button
+                              className="text-blue-600 hover:underline text-xs"
+                              onClick={() => { setEditingRecord(r.id); setEditForm({ date: r.date, mileage: r.mileage, price: r.price, garage: r.garage }); }}
+                            >
+                              Modifier
+                            </button>
+                            <button
+                              className="text-red-600 hover:underline text-xs"
+                              onClick={() => { if (confirm('Supprimer cet entretien ?')) deleteMutation.mutate(r.id); }}
+                            >
+                              Supprimer
+                            </button>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
               </div>
-            </div>
-          )}
+            );
+          })()}
         </div>
       )}
     </div>

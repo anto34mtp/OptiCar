@@ -122,6 +122,12 @@ export default function RootNavigator() {
             component={InsuranceScreen}
             options={{ headerShown: true, title: 'Assurance' }}
           />
+          {isLocalMode && (
+            <>
+              <Stack.Screen name="Register" component={RegisterScreen} />
+              <Stack.Screen name="Login" component={LoginScreen} />
+            </>
+          )}
         </>
       ) : !hasChosenMode ? (
         <>

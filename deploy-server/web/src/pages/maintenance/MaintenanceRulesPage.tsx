@@ -24,6 +24,18 @@ const PART_TYPE_LABELS: Record<string, string> = {
   CONTROLE_TECHNIQUE: 'Contrôle technique',
 };
 
+const PART_TYPE_TO_CATEGORY: Record<string, string> = {
+  VIDANGE: 'MOTEUR', FILTRE_AIR: 'MOTEUR', FILTRE_CARBURANT: 'MOTEUR',
+  BOUGIES: 'MOTEUR', FILTRE_HABITACLE: 'MOTEUR', LIQUIDE_REFROIDISSEMENT: 'MOTEUR',
+  KIT_DISTRIBUTION: 'DISTRIBUTION', POMPE_EAU: 'DISTRIBUTION', COURROIE_ACCESSOIRES: 'DISTRIBUTION',
+  PLAQUETTES_AV: 'FREINAGE', PLAQUETTES_AR: 'FREINAGE', DISQUES_AV: 'FREINAGE',
+  DISQUES_AR: 'FREINAGE', LIQUIDE_FREIN: 'FREINAGE',
+  PNEUS_AV: 'LIAISON_SOL', PNEUS_AR: 'LIAISON_SOL',
+  BATTERIE: 'ADMINISTRATIF', CONTROLE_TECHNIQUE: 'ADMINISTRATIF',
+};
+
+const ALL_STANDARD_TYPES = Object.keys(PART_TYPE_LABELS);
+
 const CATEGORY_LABELS: Record<string, string> = {
   MOTEUR: 'Moteur',
   CLIMATISATION: 'Climatisation',
@@ -32,6 +44,8 @@ const CATEGORY_LABELS: Record<string, string> = {
   LIAISON_SOL: 'Liaison au sol',
   ADMINISTRATIF: 'Administratif',
 };
+
+const CATEGORY_OPTIONS = Object.entries(CATEGORY_LABELS).map(([value, label]) => ({ value, label }));
 
 export default function MaintenanceRulesPage() {
   const { vehicleId } = useParams<{ vehicleId: string }>();
@@ -42,34 +56,65 @@ export default function MaintenanceRulesPage() {
   const [editKm, setEditKm] = useState('');
   const [editMonths, setEditMonths] = useState('');
 
+  const [showAddForm, setShowAddForm] = useState(false);
+  const [isCustom, setIsCustom] = useState(false);
+  const [addPartType, setAddPartType] = useState('');
+  const [customPartType, setCustomPartType] = useState('');
+  const [customCategory, setCustomCategory] = useState('MOTEUR');
+  const [addKm, setAddKm] = useState('');
+  const [addMonths, setAddMonths] = useState('');
+
   const { data: rules, isLoading } = useQuery({
     queryKey: ['maintenance-rules', vehicleId],
     queryFn: () => maintenanceService.getRules(vehicleId!),
     enabled: !!vehicleId,
   });
 
+  const invalidate = () => {
+    queryClient.invalidateQueries({ queryKey: ['maintenance-rules', vehicleId] });
+    queryClient.invalidateQueries({ queryKey: ['maintenance-status', vehicleId] });
+  };
+
   const initDefaultsMutation = useMutation({
     mutationFn: () => maintenanceService.initDefaults(vehicleId!),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['maintenance-rules', vehicleId] });
-    },
+    onSuccess: invalidate,
   });
 
   const updateMutation = useMutation({
     mutationFn: ({ id, data }: { id: string; data: Partial<MaintenanceRule> }) =>
       maintenanceService.updateRule(id, data),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['maintenance-rules', vehicleId] });
-      setEditingId(null);
-    },
+    onSuccess: () => { invalidate(); setEditingId(null); },
   });
 
   const deleteMutation = useMutation({
     mutationFn: (id: string) => maintenanceService.deleteRule(id),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['maintenance-rules', vehicleId] });
-    },
+    onSuccess: invalidate,
   });
+
+  const createMutation = useMutation({
+    mutationFn: (data: Omit<MaintenanceRule, 'id' | 'vehicleId'>) =>
+      maintenanceService.createRule(vehicleId!, data),
+    onSuccess: () => { invalidate(); setShowAddForm(false); resetAddForm(); },
+  });
+
+  const resetAddForm = () => {
+    setAddPartType(''); setIsCustom(false); setCustomPartType('');
+    setCustomCategory('MOTEUR'); setAddKm(''); setAddMonths('');
+  };
+
+  const handleAddRule = () => {
+    const partType = isCustom
+      ? customPartType.trim().toUpperCase().replace(/\s+/g, '_')
+      : addPartType;
+    if (!partType) return;
+    const category = isCustom ? customCategory : (PART_TYPE_TO_CATEGORY[partType] || 'MOTEUR');
+    createMutation.mutate({
+      category,
+      partType,
+      intervalKm: addKm ? parseInt(addKm) : null,
+      intervalMonths: addMonths ? parseInt(addMonths) : null,
+    });
+  };
 
   const startEdit = (rule: MaintenanceRule) => {
     setEditingId(rule.id);
@@ -87,6 +132,9 @@ export default function MaintenanceRulesPage() {
     });
   };
 
+  const existingPartTypes = new Set((rules || []).map((r) => r.partType));
+  const availableStandardTypes = ALL_STANDARD_TYPES.filter((t) => !existingPartTypes.has(t));
+
   // Group by category
   const byCategory: Record<string, MaintenanceRule[]> = {};
   if (rules) {
@@ -103,16 +151,126 @@ export default function MaintenanceRulesPage() {
       </button>
       <div className="flex items-center justify-between mb-6">
         <h1 className="text-2xl font-bold text-gray-900">Règles d'entretien</h1>
-        {(!rules || rules.length === 0) && (
+        <div className="flex gap-2">
+          {(!rules || rules.length === 0) && (
+            <button
+              onClick={() => initDefaultsMutation.mutate()}
+              disabled={initDefaultsMutation.isPending}
+              className="px-4 py-2 text-sm bg-primary-600 text-white rounded-lg hover:bg-primary-700 disabled:opacity-50"
+            >
+              {initDefaultsMutation.isPending ? 'Initialisation...' : 'Initialiser par défaut'}
+            </button>
+          )}
           <button
-            onClick={() => initDefaultsMutation.mutate()}
-            disabled={initDefaultsMutation.isPending}
-            className="px-4 py-2 text-sm bg-primary-600 text-white rounded-lg hover:bg-primary-700 disabled:opacity-50"
+            onClick={() => setShowAddForm(!showAddForm)}
+            className="px-4 py-2 text-sm bg-emerald-600 text-white rounded-lg hover:bg-emerald-700"
           >
-            {initDefaultsMutation.isPending ? 'Initialisation...' : 'Initialiser par défaut'}
+            + Ajouter une règle
           </button>
-        )}
+        </div>
       </div>
+
+      {/* Add rule form */}
+      {showAddForm && (
+        <div className="bg-white rounded-xl border border-gray-200 p-5 mb-6">
+          <h2 className="text-base font-semibold text-gray-800 mb-4">Nouvelle règle</h2>
+
+          {/* Standard / Custom toggle */}
+          <div className="flex gap-2 mb-4">
+            <button
+              onClick={() => setIsCustom(false)}
+              className={`px-4 py-2 text-sm rounded-lg border ${!isCustom ? 'bg-primary-600 text-white border-primary-600' : 'bg-white text-gray-600 border-gray-300'}`}
+            >
+              Standard
+            </button>
+            <button
+              onClick={() => setIsCustom(true)}
+              className={`px-4 py-2 text-sm rounded-lg border ${isCustom ? 'bg-primary-600 text-white border-primary-600' : 'bg-white text-gray-600 border-gray-300'}`}
+            >
+              Personnalisé
+            </button>
+          </div>
+
+          <div className="grid grid-cols-2 gap-4">
+            {isCustom ? (
+              <>
+                <div>
+                  <label className="block text-xs font-medium text-gray-600 mb-1">Nom de la pièce</label>
+                  <input
+                    type="text"
+                    className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm"
+                    placeholder="Ex: Filtre boîte"
+                    value={customPartType}
+                    onChange={(e) => setCustomPartType(e.target.value)}
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-medium text-gray-600 mb-1">Catégorie</label>
+                  <select
+                    className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm"
+                    value={customCategory}
+                    onChange={(e) => setCustomCategory(e.target.value)}
+                  >
+                    {CATEGORY_OPTIONS.map((c) => (
+                      <option key={c.value} value={c.value}>{c.label}</option>
+                    ))}
+                  </select>
+                </div>
+              </>
+            ) : (
+              <div className="col-span-2">
+                <label className="block text-xs font-medium text-gray-600 mb-1">Type de pièce</label>
+                <select
+                  className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm"
+                  value={addPartType}
+                  onChange={(e) => setAddPartType(e.target.value)}
+                >
+                  <option value="">Choisir...</option>
+                  {availableStandardTypes.map((t) => (
+                    <option key={t} value={t}>{PART_TYPE_LABELS[t]}</option>
+                  ))}
+                </select>
+              </div>
+            )}
+            <div>
+              <label className="block text-xs font-medium text-gray-600 mb-1">Intervalle km</label>
+              <input
+                type="number"
+                className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm"
+                placeholder="Ex: 15000"
+                value={addKm}
+                onChange={(e) => setAddKm(e.target.value)}
+              />
+            </div>
+            <div>
+              <label className="block text-xs font-medium text-gray-600 mb-1">Intervalle mois</label>
+              <input
+                type="number"
+                className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm"
+                placeholder="Ex: 12"
+                value={addMonths}
+                onChange={(e) => setAddMonths(e.target.value)}
+              />
+            </div>
+          </div>
+
+          <div className="flex gap-3 mt-4">
+            <button
+              onClick={handleAddRule}
+              disabled={createMutation.isPending}
+              className="px-5 py-2 bg-primary-600 text-white text-sm rounded-lg hover:bg-primary-700 disabled:opacity-50"
+            >
+              {createMutation.isPending ? 'Ajout...' : 'Ajouter'}
+            </button>
+            <button
+              onClick={() => { setShowAddForm(false); resetAddForm(); }}
+              className="px-5 py-2 text-gray-600 text-sm border border-gray-300 rounded-lg hover:bg-gray-50"
+            >
+              Annuler
+            </button>
+          </div>
+        </div>
+      )}
 
       {isLoading ? (
         <div className="text-gray-500">Chargement...</div>

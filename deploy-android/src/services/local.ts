@@ -32,34 +32,62 @@ function generateId(): string {
   return Crypto.randomUUID();
 }
 
+// ── Part type → category mapping ──────────────────────────────────────────────
+
+export const PART_TYPE_TO_CATEGORY: Record<string, string> = {
+  VIDANGE: 'MOTEUR',
+  FILTRE_AIR: 'MOTEUR',
+  FILTRE_CARBURANT: 'MOTEUR',
+  BOUGIES: 'MOTEUR',
+  FILTRE_HABITACLE: 'MOTEUR',
+  LIQUIDE_REFROIDISSEMENT: 'MOTEUR',
+  KIT_DISTRIBUTION: 'DISTRIBUTION',
+  POMPE_EAU: 'DISTRIBUTION',
+  COURROIE_ACCESSOIRES: 'DISTRIBUTION',
+  PLAQUETTES_AV: 'FREINAGE',
+  PLAQUETTES_AR: 'FREINAGE',
+  DISQUES_AV: 'FREINAGE',
+  DISQUES_AR: 'FREINAGE',
+  LIQUIDE_FREIN: 'FREINAGE',
+  PNEUS_AV: 'LIAISON_SOL',
+  PNEUS_AR: 'LIAISON_SOL',
+  BATTERIE: 'ADMINISTRATIF',
+  CONTROLE_TECHNIQUE: 'ADMINISTRATIF',
+};
+
 // ── Default maintenance rules ─────────────────────────────────────────────────
 
 const DEFAULT_RULES = [
-  { partType: 'VIDANGE',              intervalKm: 15000,  intervalMonths: 12 },
-  { partType: 'FILTRE_AIR',           intervalKm: 30000,  intervalMonths: 24 },
-  { partType: 'FILTRE_CARBURANT',     intervalKm: 30000,  intervalMonths: 24 },
-  { partType: 'BOUGIES',              intervalKm: 60000,  intervalMonths: 48 },
-  { partType: 'FILTRE_HABITACLE',     intervalKm: 20000,  intervalMonths: 12 },
-  { partType: 'KIT_DISTRIBUTION',     intervalKm: 120000, intervalMonths: 60 },
-  { partType: 'POMPE_EAU',            intervalKm: 120000, intervalMonths: 60 },
-  { partType: 'COURROIE_ACCESSOIRES', intervalKm: 60000,  intervalMonths: 48 },
-  { partType: 'LIQUIDE_REFROIDISSEMENT', intervalKm: 60000, intervalMonths: 36 },
-  { partType: 'PLAQUETTES_AV',        intervalKm: 40000,  intervalMonths: null },
-  { partType: 'PLAQUETTES_AR',        intervalKm: 60000,  intervalMonths: null },
-  { partType: 'DISQUES_AV',           intervalKm: 80000,  intervalMonths: null },
-  { partType: 'DISQUES_AR',           intervalKm: 100000, intervalMonths: null },
-  { partType: 'LIQUIDE_FREIN',        intervalKm: null,   intervalMonths: 24 },
-  { partType: 'PNEUS_AV',             intervalKm: 40000,  intervalMonths: null },
-  { partType: 'PNEUS_AR',             intervalKm: 50000,  intervalMonths: null },
-  { partType: 'BATTERIE',             intervalKm: null,   intervalMonths: 60 },
-  { partType: 'CONTROLE_TECHNIQUE',   intervalKm: null,   intervalMonths: 24 },
+  { partType: 'VIDANGE',              category: 'MOTEUR',        intervalKm: 15000,  intervalMonths: 12 },
+  { partType: 'FILTRE_AIR',           category: 'MOTEUR',        intervalKm: 30000,  intervalMonths: 24 },
+  { partType: 'FILTRE_CARBURANT',     category: 'MOTEUR',        intervalKm: 30000,  intervalMonths: 24 },
+  { partType: 'BOUGIES',              category: 'MOTEUR',        intervalKm: 60000,  intervalMonths: 48 },
+  { partType: 'FILTRE_HABITACLE',     category: 'MOTEUR',        intervalKm: 20000,  intervalMonths: 12 },
+  { partType: 'KIT_DISTRIBUTION',     category: 'DISTRIBUTION',  intervalKm: 120000, intervalMonths: 60 },
+  { partType: 'POMPE_EAU',            category: 'DISTRIBUTION',  intervalKm: 120000, intervalMonths: 60 },
+  { partType: 'COURROIE_ACCESSOIRES', category: 'DISTRIBUTION',  intervalKm: 60000,  intervalMonths: 48 },
+  { partType: 'LIQUIDE_REFROIDISSEMENT', category: 'MOTEUR',     intervalKm: 60000,  intervalMonths: 36 },
+  { partType: 'PLAQUETTES_AV',        category: 'FREINAGE',      intervalKm: 40000,  intervalMonths: null },
+  { partType: 'PLAQUETTES_AR',        category: 'FREINAGE',      intervalKm: 60000,  intervalMonths: null },
+  { partType: 'DISQUES_AV',           category: 'FREINAGE',      intervalKm: 80000,  intervalMonths: null },
+  { partType: 'DISQUES_AR',           category: 'FREINAGE',      intervalKm: 100000, intervalMonths: null },
+  { partType: 'LIQUIDE_FREIN',        category: 'FREINAGE',      intervalKm: null,   intervalMonths: 24 },
+  { partType: 'PNEUS_AV',             category: 'LIAISON_SOL',   intervalKm: 40000,  intervalMonths: null },
+  { partType: 'PNEUS_AR',             category: 'LIAISON_SOL',   intervalKm: 50000,  intervalMonths: null },
+  { partType: 'BATTERIE',             category: 'ADMINISTRATIF', intervalKm: null,   intervalMonths: 60 },
+  { partType: 'CONTROLE_TECHNIQUE',   category: 'ADMINISTRATIF', intervalKm: null,   intervalMonths: 24 },
 ];
 
 // ── Vehicles ──────────────────────────────────────────────────────────────────
 
 export const localVehiclesService = {
   async getAll() {
-    return getLocalData<any[]>(KEYS.VEHICLES, []);
+    const vehicles = await getLocalData<any[]>(KEYS.VEHICLES, []);
+    const refuels = await getLocalData<any[]>(KEYS.REFUELS, []);
+    return vehicles.map((v) => ({
+      ...v,
+      _count: { refuels: refuels.filter((r) => r.vehicleId === v.id).length },
+    }));
   },
 
   async getOne(id: string) {
@@ -169,6 +197,14 @@ export const localMaintenanceService = {
     return updated.find((r) => r.id === id);
   },
 
+  async createRule(vehicleId: string, data: any) {
+    const rules = await getLocalData<any[]>(KEYS.MAINT_RULES, []);
+    const category = data.category || PART_TYPE_TO_CATEGORY[data.partType] || 'MOTEUR';
+    const newRule = { id: generateId(), vehicleId, ...data, category, lastServiceKm: null, lastServiceDate: null };
+    await setLocalData(KEYS.MAINT_RULES, [...rules, newRule]);
+    return newRule;
+  },
+
   async deleteRule(id: string) {
     const rules = await getLocalData<any[]>(KEYS.MAINT_RULES, []);
     await setLocalData(KEYS.MAINT_RULES, rules.filter((r) => r.id !== id));
@@ -232,8 +268,19 @@ export const localMaintenanceService = {
       if (wearPercent >= 100) status = 'critical';
       else if (wearPercent >= 80) status = 'warning';
 
+      const nextEstimatedDate = (() => {
+        if (rule.intervalMonths && lastServiceDate) {
+          const d = new Date(lastServiceDate);
+          d.setMonth(d.getMonth() + rule.intervalMonths);
+          return d.toISOString();
+        }
+        return null;
+      })();
+
       return {
+        ruleId: rule.id,
         id: rule.id,
+        category: rule.category || PART_TYPE_TO_CATEGORY[rule.partType] || 'MOTEUR',
         partType: rule.partType,
         status,
         wearPercent: Math.round(wearPercent),
@@ -241,6 +288,8 @@ export const localMaintenanceService = {
         intervalMonths: rule.intervalMonths,
         lastServiceKm,
         lastServiceDate,
+        lastDate: lastServiceDate,
+        nextEstimatedDate,
         nextServiceKm: rule.intervalKm && lastServiceKm != null ? lastServiceKm + rule.intervalKm : null,
       };
     });

@@ -1,14 +1,24 @@
-import { View, Text, TouchableOpacity, StyleSheet, StatusBar } from 'react-native';
+import { useState } from 'react';
+import { View, Text, TouchableOpacity, StyleSheet, StatusBar, Modal, TextInput } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { useAuthStore } from '../stores/authStore';
 
 export default function WelcomeScreen() {
   const navigation = useNavigation<any>();
-  const { setLocalMode, setHasChosenMode } = useAuthStore();
+  const { setLocalMode, setHasChosenMode, setLocalUserName } = useAuthStore();
+  const [showNameModal, setShowNameModal] = useState(false);
+  const [nameInput, setNameInput] = useState('');
 
   const handleLocalMode = async () => {
+    setShowNameModal(true);
+  };
+
+  const confirmLocalMode = async () => {
+    if (nameInput.trim()) {
+      await setLocalUserName(nameInput.trim());
+    }
+    setShowNameModal(false);
     await setLocalMode(true);
-    // RootNavigator réagit automatiquement à isLocalMode=true → MainTabs
   };
 
   const handleRegister = async () => {
@@ -24,6 +34,29 @@ export default function WelcomeScreen() {
   return (
     <View style={styles.container}>
       <StatusBar barStyle="light-content" />
+
+      {/* Name prompt modal */}
+      <Modal transparent animationType="fade" visible={showNameModal} onRequestClose={() => setShowNameModal(false)}>
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalBox}>
+            <Text style={styles.modalTitle}>Votre prénom</Text>
+            <Text style={styles.modalSubtitle}>Optionnel — pour personnaliser l'accueil</Text>
+            <TextInput
+              style={styles.modalInput}
+              placeholder="Ex: Thomas"
+              value={nameInput}
+              onChangeText={setNameInput}
+              autoFocus
+            />
+            <TouchableOpacity style={styles.modalBtn} onPress={confirmLocalMode}>
+              <Text style={styles.modalBtnText}>Continuer</Text>
+            </TouchableOpacity>
+            <TouchableOpacity onPress={confirmLocalMode}>
+              <Text style={styles.modalSkip}>Passer</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
 
       {/* Header */}
       <View style={styles.header}>
@@ -205,5 +238,57 @@ const styles = StyleSheet.create({
   loginLink: {
     color: '#1d4ed8',
     fontWeight: '600',
+  },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.5)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 24,
+  },
+  modalBox: {
+    backgroundColor: '#fff',
+    borderRadius: 16,
+    padding: 24,
+    width: '100%',
+    gap: 12,
+  },
+  modalTitle: {
+    fontSize: 20,
+    fontWeight: '700',
+    color: '#111827',
+    textAlign: 'center',
+  },
+  modalSubtitle: {
+    fontSize: 13,
+    color: '#6b7280',
+    textAlign: 'center',
+    marginTop: -4,
+  },
+  modalInput: {
+    borderWidth: 1,
+    borderColor: '#d1d5db',
+    borderRadius: 10,
+    padding: 14,
+    fontSize: 16,
+    marginTop: 4,
+  },
+  modalBtn: {
+    backgroundColor: '#1d4ed8',
+    borderRadius: 10,
+    padding: 16,
+    alignItems: 'center',
+    marginTop: 4,
+  },
+  modalBtnText: {
+    color: '#fff',
+    fontWeight: '700',
+    fontSize: 15,
+  },
+  modalSkip: {
+    textAlign: 'center',
+    color: '#9ca3af',
+    fontSize: 13,
+    paddingVertical: 4,
   },
 });

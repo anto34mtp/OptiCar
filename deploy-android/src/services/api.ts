@@ -9,6 +9,7 @@ import {
   localMaintenanceExtService,
   localInsuranceService,
   localStatsService,
+  PART_TYPE_TO_CATEGORY,
 } from './local';
 
 const isLocal = () => useAuthStore.getState().isLocalMode;
@@ -168,6 +169,13 @@ export const maintenanceService = {
   async getRules(vehicleId: string) {
     if (isLocal()) return localMaintenanceService.getRules(vehicleId);
     const response = await api.get(`/vehicles/${vehicleId}/maintenance/rules`);
+    return response.data;
+  },
+
+  async createRule(vehicleId: string, data: any) {
+    if (isLocal()) return localMaintenanceService.createRule(vehicleId, data);
+    const category = data.category || PART_TYPE_TO_CATEGORY[data.partType] || 'MOTEUR';
+    const response = await api.post(`/vehicles/${vehicleId}/maintenance/rules`, { ...data, category });
     return response.data;
   },
 

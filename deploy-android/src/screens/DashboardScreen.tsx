@@ -21,7 +21,8 @@ function formatCurrency(value: number) {
 
 export default function DashboardScreen() {
   const navigation = useNavigation<any>();
-  const { user, logout } = useAuthStore();
+  const { user, logout, isLocalMode, localUserName } = useAuthStore();
+  const displayName = localUserName || user?.name || 'Utilisateur';
 
   const { data: stats, isLoading: statsLoading, refetch: refetchStats } = useQuery({
     queryKey: ['stats', 'global'],
@@ -54,12 +55,18 @@ export default function DashboardScreen() {
         {/* Header */}
         <View style={styles.header}>
           <View>
-            <Text style={styles.greeting}>Bonjour, {user?.name || 'Utilisateur'}</Text>
+            <Text style={styles.greeting}>Bonjour, {displayName}</Text>
             <Text style={styles.subtitle}>Votre tableau de bord</Text>
           </View>
-          <TouchableOpacity onPress={logout} style={styles.logoutButton}>
-            <Text style={styles.logoutText}>Déconnexion</Text>
-          </TouchableOpacity>
+          {isLocalMode ? (
+            <TouchableOpacity onPress={() => navigation.navigate('Register')} style={styles.registerButton}>
+              <Text style={styles.registerText}>Créer un compte</Text>
+            </TouchableOpacity>
+          ) : (
+            <TouchableOpacity onPress={logout} style={styles.logoutButton}>
+              <Text style={styles.logoutText}>Déconnexion</Text>
+            </TouchableOpacity>
+          )}
         </View>
 
         {/* Quick action */}
@@ -176,6 +183,17 @@ const styles = StyleSheet.create({
   logoutText: {
     color: '#ef4444',
     fontWeight: '500',
+  },
+  registerButton: {
+    backgroundColor: '#1d4ed8',
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+    borderRadius: 8,
+  },
+  registerText: {
+    color: '#fff',
+    fontWeight: '600',
+    fontSize: 13,
   },
   addButton: {
     backgroundColor: '#3b82f6',

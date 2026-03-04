@@ -1,5 +1,6 @@
 import { create } from 'zustand';
 import * as SecureStore from 'expo-secure-store';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 interface User {
   id: string;
@@ -13,9 +14,14 @@ interface AuthState {
   refreshToken: string | null;
   isAuthenticated: boolean;
   isLoading: boolean;
+  isLocalMode: boolean;
+  hasChosenMode: boolean;
   setAuth: (user: User, accessToken: string, refreshToken: string) => Promise<void>;
   logout: () => Promise<void>;
   loadAuth: () => Promise<void>;
+  setLocalMode: (val: boolean) => Promise<void>;
+  setHasChosenMode: (val: boolean) => Promise<void>;
+  clearLocalMode: () => Promise<void>;
 }
 
 export const useAuthStore = create<AuthState>((set) => ({
@@ -24,6 +30,8 @@ export const useAuthStore = create<AuthState>((set) => ({
   refreshToken: null,
   isAuthenticated: false,
   isLoading: true,
+  isLocalMode: false,
+  hasChosenMode: false,
 
   setAuth: async (user, accessToken, refreshToken) => {
     await SecureStore.setItemAsync('accessToken', accessToken);
@@ -51,24 +59,42 @@ export const useAuthStore = create<AuthState>((set) => ({
 
   loadAuth: async () => {
     try {
-      const accessToken = await SecureStore.getItemAsync('accessToken');
-      const refreshToken = await SecureStore.getItemAsync('refreshToken');
-      const userStr = await SecureStore.getItemAsync('user');
+      const [accessToken, refreshToken, userStr, modeStr] = await Promise.all([
+        SecureStore.getItemAsync('accessToken'),
+        SecureStore.getItemAsync('refreshToken'),
+        SecureStore.getItemAsync('user'),
+        AsyncStorage.getItem('app-mode'),
+      ]);
+
+      const { isLocalMode = false, hasChosenMode = false } = modeStr ? JSON.parse(modeStr) : {};
 
       if (accessToken && refreshToken && userStr) {
         const user = JSON.parse(userStr);
-        set({
-          user,
-          accessToken,
-          refreshToken,
-          isAuthenticated: true,
-          isLoading: false,
-        });
+        set({ user, accessToken, refreshToken, isAuthenticated: true, isLoading: false, isLocalMode: false, hasChosenMode: true });
       } else {
-        set({ isLoading: false });
+        set({ isLoading: false, isLocalMode, hasChosenMode });
       }
     } catch {
       set({ isLoading: false });
     }
+  },
+
+  setLocalMode: async (val) => {
+    const modeStr = await AsyncStorage.getItem('app-mode');
+    const current = modeStr ? JSON.parse(modeStr) : {};
+    await AsyncStorage.setItem('app-mode', JSON.stringify({ ...current, isLocalMode: val, hasChosenMode: true }));
+    set({ isLocalMode: val, hasChosenMode: true });
+  },
+
+  setHasChosenMode: async (val) => {
+    const modeStr = await AsyncStorage.getItem('app-mode');
+    const current = modeStr ? JSON.parse(modeStr) : {};
+    await AsyncStorage.setItem('app-mode', JSON.stringify({ ...current, hasChosenMode: val }));
+    set({ hasChosenMode: val });
+  },
+
+  clearLocalMode: async () => {
+    await AsyncStorage.removeItem('app-mode');
+    set({ isLocalMode: false, hasChosenMode: false });
   },
 }));

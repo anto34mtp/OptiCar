@@ -6,6 +6,7 @@ import { useAuthStore } from '../stores/authStore';
 import { useNotificationSettingsStore } from '../stores/notificationSettingsStore';
 
 // Screens
+import WelcomeScreen from '../screens/WelcomeScreen';
 import LoginScreen from '../screens/LoginScreen';
 import RegisterScreen from '../screens/RegisterScreen';
 import DashboardScreen from '../screens/DashboardScreen';
@@ -70,7 +71,7 @@ function MainTabs() {
 }
 
 export default function RootNavigator() {
-  const { isAuthenticated, isLoading, loadAuth } = useAuthStore();
+  const { isAuthenticated, isLoading, isLocalMode, hasChosenMode, loadAuth } = useAuthStore();
   const { loadSettings } = useNotificationSettingsStore();
 
   useEffect(() => {
@@ -88,17 +89,7 @@ export default function RootNavigator() {
 
   return (
     <Stack.Navigator screenOptions={{ headerShown: false }}>
-      {!isAuthenticated ? (
-        <>
-          <Stack.Screen name="Login" component={LoginScreen} />
-          <Stack.Screen name="Register" component={RegisterScreen} />
-          <Stack.Screen
-            name="ForgotPassword"
-            component={ForgotPasswordScreen}
-            options={{ headerShown: true, title: 'Mot de passe oublié' }}
-          />
-        </>
-      ) : (
+      {isAuthenticated || isLocalMode ? (
         <>
           <Stack.Screen name="Main" component={MainTabs} />
           <Stack.Screen
@@ -130,6 +121,27 @@ export default function RootNavigator() {
             name="Insurance"
             component={InsuranceScreen}
             options={{ headerShown: true, title: 'Assurance' }}
+          />
+        </>
+      ) : !hasChosenMode ? (
+        <>
+          <Stack.Screen name="Welcome" component={WelcomeScreen} />
+          <Stack.Screen name="Login" component={LoginScreen} />
+          <Stack.Screen name="Register" component={RegisterScreen} />
+          <Stack.Screen
+            name="ForgotPassword"
+            component={ForgotPasswordScreen}
+            options={{ headerShown: true, title: 'Mot de passe oublié' }}
+          />
+        </>
+      ) : (
+        <>
+          <Stack.Screen name="Login" component={LoginScreen} />
+          <Stack.Screen name="Register" component={RegisterScreen} />
+          <Stack.Screen
+            name="ForgotPassword"
+            component={ForgotPasswordScreen}
+            options={{ headerShown: true, title: 'Mot de passe oublié' }}
           />
         </>
       )}

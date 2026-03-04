@@ -14,6 +14,7 @@ import { useRoute, useNavigation } from '@react-navigation/native';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import * as ImagePicker from 'expo-image-picker';
 import { vehiclesService, refuelsService, ocrService } from '../services/api';
+import { useAuthStore } from '../stores/authStore';
 import { Picker } from '@react-native-picker/picker';
 
 const sourceTypes = [
@@ -26,6 +27,7 @@ export default function AddRefuelScreen() {
   const route = useRoute<any>();
   const navigation = useNavigation<any>();
   const queryClient = useQueryClient();
+  const isLocalMode = useAuthStore((state) => state.isLocalMode);
   const preselectedVehicleId = route.params?.vehicleId;
 
   const [step, setStep] = useState<'vehicle' | 'capture' | 'verify'>('vehicle');
@@ -181,7 +183,16 @@ export default function AddRefuelScreen() {
             </Picker>
           </View>
 
-          {isAnalyzing ? (
+          {isLocalMode ? (
+            <View style={styles.ocrDisabledBox}>
+              <Text style={styles.ocrDisabledIcon}>📷</Text>
+              <Text style={styles.ocrDisabledTitle}>Scan non disponible</Text>
+              <Text style={styles.ocrDisabledText}>
+                La reconnaissance de ticket/pompe nécessite un compte.{'\n'}
+                Utilisez la saisie manuelle ci-dessous.
+              </Text>
+            </View>
+          ) : isAnalyzing ? (
             <View style={styles.analyzing}>
               <ActivityIndicator size="large" color="#3b82f6" />
               <Text style={styles.analyzingText}>Analyse en cours...</Text>
@@ -372,6 +383,19 @@ const styles = StyleSheet.create({
   backButtonText: {
     color: '#6b7280',
   },
+  ocrDisabledBox: {
+    backgroundColor: '#f9fafb',
+    borderWidth: 1,
+    borderColor: '#e5e7eb',
+    borderRadius: 12,
+    padding: 24,
+    alignItems: 'center',
+    marginTop: 20,
+    gap: 8,
+  },
+  ocrDisabledIcon: { fontSize: 36 },
+  ocrDisabledTitle: { fontSize: 16, fontWeight: '600', color: '#374151' },
+  ocrDisabledText: { fontSize: 13, color: '#9ca3af', textAlign: 'center', lineHeight: 20 },
   preview: {
     width: '100%',
     height: 200,

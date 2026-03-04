@@ -175,21 +175,61 @@ export default function StatsPage() {
                 </div>
               </Card>
 
-              {/* Chart mensuel */}
+              {/* Répartition mensuelle — 3 barres + % */}
               {(costs?.costsByMonth?.length ?? 0) > 0 && (
                 <Card>
-                  <h2 className="text-base font-semibold text-gray-800 mb-4">Dépenses mensuelles</h2>
-                  <ResponsiveContainer width="100%" height={300}>
-                    <BarChart data={costs!.costsByMonth} barSize={28}>
+                  <h2 className="text-base font-semibold text-gray-800 mb-5">Répartition mensuelle</h2>
+                  <div className="space-y-5">
+                    {costs!.costsByMonth.slice(-6).map((m: any) => {
+                      const fp = m.total > 0 ? (m.fuel / m.total) * 100 : 0;
+                      const mp = m.total > 0 ? (m.maintenance / m.total) * 100 : 0;
+                      const ip = m.total > 0 ? (m.insurance / m.total) * 100 : 0;
+                      return (
+                        <div key={m.month}>
+                          <div className="flex justify-between items-center mb-2">
+                            <span className="text-sm font-semibold text-gray-700">{m.month}</span>
+                            <span className="text-sm font-bold text-gray-900">{fmt(m.total)}</span>
+                          </div>
+                          {[
+                            { label: 'Carburant', pct: fp, color: '#3b82f6' },
+                            { label: 'Entretien',  pct: mp, color: '#f97316' },
+                            { label: 'Assurance',  pct: ip, color: '#8b5cf6' },
+                          ].map((row) => (
+                            <div key={row.label} className="flex items-center gap-2 mb-1.5">
+                              <span className="w-20 text-xs text-gray-500 shrink-0">{row.label}</span>
+                              <div className="flex-1 bg-gray-100 rounded-full h-2.5">
+                                <div
+                                  className="h-2.5 rounded-full"
+                                  style={{ width: `${Math.max(row.pct, 0)}%`, backgroundColor: row.color }}
+                                />
+                              </div>
+                              <span className="w-9 text-xs font-semibold text-gray-700 text-right shrink-0">
+                                {row.pct.toFixed(0)}%
+                              </span>
+                            </div>
+                          ))}
+                        </div>
+                      );
+                    })}
+                  </div>
+                </Card>
+              )}
+
+              {/* Suivi du coût total mensuel — ligne */}
+              {(costs?.costsByMonth?.length ?? 0) > 1 && (
+                <Card>
+                  <h2 className="text-base font-semibold text-gray-800 mb-4">Suivi du coût total mensuel</h2>
+                  <ResponsiveContainer width="100%" height={240}>
+                    <LineChart data={costs!.costsByMonth}>
                       <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
                       <XAxis dataKey="month" tick={{ fontSize: 11 }} />
                       <YAxis tick={{ fontSize: 11 }} tickFormatter={(v) => `${v}€`} />
-                      <Tooltip formatter={(v: number) => fmt(v)} labelFormatter={(l) => `Mois : ${l}`} />
-                      <Legend />
-                      <Bar dataKey="fuel" name="Carburant" fill="#3b82f6" stackId="a" radius={[0,0,0,0]} />
-                      <Bar dataKey="maintenance" name="Entretien" fill="#f97316" stackId="a" />
-                      <Bar dataKey="insurance" name="Assurance" fill="#8b5cf6" stackId="a" radius={[4,4,0,0]} />
-                    </BarChart>
+                      <Tooltip formatter={(v: number) => [fmt(v), 'Total']} labelFormatter={(l) => `Mois : ${l}`} />
+                      <Line
+                        type="monotone" dataKey="total" stroke="#1d4ed8"
+                        strokeWidth={2.5} dot={{ fill: '#1d4ed8', r: 4 }} activeDot={{ r: 6 }}
+                      />
+                    </LineChart>
                   </ResponsiveContainer>
                 </Card>
               )}
@@ -302,7 +342,7 @@ export default function StatsPage() {
           {co2Chart.length > 0 && (
             <Card>
               <h2 className="text-base font-semibold text-gray-800 mb-4">Émissions mensuelles (kg CO2)</h2>
-              <ResponsiveContainer width="100%" height={280}>
+              <ResponsiveContainer width="100%" height={260}>
                 <BarChart data={co2Chart} barSize={28}>
                   <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
                   <XAxis dataKey="month" tick={{ fontSize: 11 }} />
@@ -314,6 +354,24 @@ export default function StatsPage() {
                     ))}
                   </Bar>
                 </BarChart>
+              </ResponsiveContainer>
+            </Card>
+          )}
+
+          {co2Chart.length > 1 && (
+            <Card>
+              <h2 className="text-base font-semibold text-gray-800 mb-4">Suivi des émissions CO2</h2>
+              <ResponsiveContainer width="100%" height={240}>
+                <LineChart data={co2Chart}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
+                  <XAxis dataKey="month" tick={{ fontSize: 11 }} />
+                  <YAxis tick={{ fontSize: 11 }} tickFormatter={(v) => `${v}kg`} />
+                  <Tooltip formatter={(v: number) => [`${v} kg CO2`, 'Émissions']} />
+                  <Line
+                    type="monotone" dataKey="co2" stroke="#10b981"
+                    strokeWidth={2.5} dot={{ fill: '#10b981', r: 4 }} activeDot={{ r: 6 }}
+                  />
+                </LineChart>
               </ResponsiveContainer>
             </Card>
           )}

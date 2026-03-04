@@ -8,6 +8,29 @@ import { statsService } from '../services/api';
 
 const { width } = Dimensions.get('window');
 
+function MiniBarChart({ data, color }: { data: { label: string; value: number }[]; color: string }) {
+  const max = Math.max(...data.map((d) => d.value), 1);
+  return (
+    <View style={{ flexDirection: 'row', alignItems: 'flex-end', height: 90, gap: 5, paddingTop: 8 }}>
+      {data.map((d, i) => (
+        <View key={i} style={{ flex: 1, alignItems: 'center' }}>
+          <Text style={{ fontSize: 9, color: '#6b7280', marginBottom: 3 }}>
+            {d.value > 0 ? (typeof d.value === 'number' && d.value > 999 ? `${(d.value/1000).toFixed(1)}k` : String(Math.round(d.value))) : ''}
+          </Text>
+          <View style={{
+            width: '100%',
+            height: Math.max((d.value / max) * 56, d.value > 0 ? 4 : 2),
+            backgroundColor: d.value > 0 ? color : '#e5e7eb',
+            borderRadius: 4,
+            opacity: 0.65 + (i / Math.max(data.length - 1, 1)) * 0.35,
+          }} />
+          <Text style={{ fontSize: 8, color: '#9ca3af', marginTop: 4, textAlign: 'center' }}>{d.label}</Text>
+        </View>
+      ))}
+    </View>
+  );
+}
+
 function fmt(v: number) {
   return new Intl.NumberFormat('fr-FR', { style: 'currency', currency: 'EUR' }).format(v);
 }
@@ -130,21 +153,49 @@ export default function StatsScreen() {
                 </View>
               )}
 
-              {/* Par mois */}
+              {/* Répartition mensuelle — 3 barres + % */}
               {(costs?.costsByMonth?.length ?? 0) > 0 && (
                 <View style={styles.section}>
-                  <Text style={styles.sectionTitle}>Dépenses par mois</Text>
-                  {costs!.costsByMonth.slice(-6).map((m: any) => (
-                    <View key={m.month} style={styles.monthRow}>
-                      <Text style={styles.monthLabel}>{m.month}</Text>
-                      <View style={styles.monthBarWrap}>
-                        {m.fuel > 0 && <View style={[styles.monthSeg, { flex: m.fuel, backgroundColor: '#3b82f6' }]} />}
-                        {m.maintenance > 0 && <View style={[styles.monthSeg, { flex: m.maintenance, backgroundColor: '#f97316' }]} />}
-                        {m.insurance > 0 && <View style={[styles.monthSeg, { flex: m.insurance, backgroundColor: '#8b5cf6' }]} />}
+                  <Text style={styles.sectionTitle}>Répartition mensuelle</Text>
+                  {costs!.costsByMonth.slice(-6).map((m: any) => {
+                    const fp = m.total > 0 ? (m.fuel / m.total) * 100 : 0;
+                    const mp = m.total > 0 ? (m.maintenance / m.total) * 100 : 0;
+                    const ip = m.total > 0 ? (m.insurance / m.total) * 100 : 0;
+                    return (
+                      <View key={m.month} style={styles.monthCard}>
+                        <View style={styles.monthCardHeader}>
+                          <Text style={styles.monthCardLabel}>{m.month}</Text>
+                          <Text style={styles.monthCardTotal}>{fmt(m.total)}</Text>
+                        </View>
+                        {[
+                          { label: 'Carburant', pct: fp, color: '#3b82f6' },
+                          { label: 'Entretien',  pct: mp, color: '#f97316' },
+                          { label: 'Assurance',  pct: ip, color: '#8b5cf6' },
+                        ].map((row) => (
+                          <View key={row.label} style={styles.barRow}>
+                            <Text style={styles.barLabel}>{row.label}</Text>
+                            <View style={styles.barTrack}>
+                              <View style={[styles.barFill, { width: `${Math.max(row.pct, 0)}%` as any, backgroundColor: row.color }]} />
+                            </View>
+                            <Text style={styles.barPct}>{row.pct.toFixed(0)}%</Text>
+                          </View>
+                        ))}
                       </View>
-                      <Text style={styles.monthTotal}>{fmt(m.total)}</Text>
-                    </View>
-                  ))}
+                    );
+                  })}
+                </View>
+              )}
+
+              {/* Suivi du coût total mensuel */}
+              {(costs?.costsByMonth?.length ?? 0) > 1 && (
+                <View style={styles.section}>
+                  <Text style={styles.sectionTitle}>Suivi du coût mensuel</Text>
+                  <View style={styles.trendCard}>
+                    <MiniBarChart
+                      data={costs!.costsByMonth.slice(-6).map((m: any) => ({ label: m.month.slice(0, 3), value: m.total }))}
+                      color="#2563eb"
+                    />
+                  </View>
                 </View>
               )}
 
@@ -246,20 +297,32 @@ export default function StatsScreen() {
 
                   {(co2.co2ByMonth?.length ?? 0) > 0 && (
                     <View style={styles.section}>
-                      <Text style={styles.sectionTitle}>Émissions par mois (kg)</Text>
+                      <Text style={styles.sectionTitle}>Émissions par mois</Text>
                       {co2.co2ByMonth.slice(-6).map((m: any) => {
                         const kg = Math.round(m.co2Grams / 1000);
                         const maxKg = Math.max(...co2.co2ByMonth.map((x: any) => Math.round(x.co2Grams / 1000)), 1);
                         return (
-                          <View key={m.month} style={styles.monthRow}>
-                            <Text style={styles.monthLabel}>{m.month}</Text>
-                            <View style={[styles.co2BarBg]}>
-                              <View style={[styles.co2Bar, { width: `${(kg / maxKg) * 100}%` }]} />
+                          <View key={m.month} style={styles.barRow}>
+                            <Text style={styles.barLabel}>{m.month.slice(0, 6)}</Text>
+                            <View style={[styles.barTrack, { backgroundColor: '#d1fae5' }]}>
+                              <View style={[styles.barFill, { width: `${(kg / maxKg) * 100}%` as any, backgroundColor: '#10b981' }]} />
                             </View>
-                            <Text style={styles.monthTotal}>{kg} kg</Text>
+                            <Text style={styles.barPct}>{kg}kg</Text>
                           </View>
                         );
                       })}
+                    </View>
+                  )}
+
+                  {(co2.co2ByMonth?.length ?? 0) > 1 && (
+                    <View style={styles.section}>
+                      <Text style={styles.sectionTitle}>Suivi des émissions CO2</Text>
+                      <View style={styles.trendCard}>
+                        <MiniBarChart
+                          data={co2.co2ByMonth.slice(-6).map((m: any) => ({ label: m.month.slice(0, 3), value: Math.round(m.co2Grams / 1000) }))}
+                          color="#10b981"
+                        />
+                      </View>
                     </View>
                   )}
 
@@ -343,12 +406,19 @@ const styles = StyleSheet.create({
   section: { marginBottom: 20 },
   sectionTitle: { fontSize: 16, fontWeight: '600', color: '#1f2937', marginBottom: 12 },
 
-  // Monthly rows
-  monthRow: { flexDirection: 'row', alignItems: 'center', marginBottom: 8, gap: 8 },
-  monthLabel: { width: 64, fontSize: 11, color: '#6b7280' },
-  monthBarWrap: { flex: 1, flexDirection: 'row', height: 16, borderRadius: 4, overflow: 'hidden', backgroundColor: '#e5e7eb' },
-  monthSeg: { height: 16 },
-  monthTotal: { width: 72, fontSize: 11, fontWeight: '600', color: '#111827', textAlign: 'right' },
+  // Monthly card (3-bar breakdown)
+  monthCard: { backgroundColor: '#fff', borderRadius: 12, padding: 14, marginBottom: 10, borderWidth: 1, borderColor: '#e5e7eb' },
+  monthCardHeader: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 10 },
+  monthCardLabel: { fontSize: 13, fontWeight: '600', color: '#374151' },
+  monthCardTotal: { fontSize: 13, fontWeight: 'bold', color: '#111827' },
+  barRow: { flexDirection: 'row', alignItems: 'center', marginBottom: 6, gap: 8 },
+  barLabel: { width: 68, fontSize: 11, color: '#6b7280' },
+  barTrack: { flex: 1, height: 8, backgroundColor: '#e5e7eb', borderRadius: 4, overflow: 'hidden' },
+  barFill: { height: 8, borderRadius: 4 },
+  barPct: { width: 32, fontSize: 11, fontWeight: '600', color: '#374151', textAlign: 'right' },
+
+  // Trend chart
+  trendCard: { backgroundColor: '#fff', borderRadius: 12, padding: 14, borderWidth: 1, borderColor: '#e5e7eb' },
 
   // Vehicle card
   vehicleCard: { backgroundColor: '#fff', borderRadius: 12, padding: 14,
@@ -386,6 +456,4 @@ const styles = StyleSheet.create({
   co2Label: { color: 'rgba(255,255,255,0.75)', fontSize: 13, fontWeight: '500' },
   co2Value: { color: '#fff', fontSize: 36, fontWeight: 'bold', marginTop: 4 },
   co2Sub: { color: 'rgba(255,255,255,0.6)', fontSize: 12, marginTop: 6 },
-  co2BarBg: { flex: 1, height: 14, backgroundColor: '#d1fae5', borderRadius: 7, overflow: 'hidden' },
-  co2Bar: { height: 14, backgroundColor: '#10b981', borderRadius: 7 },
 });

@@ -18,6 +18,7 @@ import AddMaintenanceScreen from '../screens/AddMaintenanceScreen';
 import MaintenanceRulesScreen from '../screens/MaintenanceRulesScreen';
 import InsuranceScreen from '../screens/InsuranceScreen';
 import ForgotPasswordScreen from '../screens/ForgotPasswordScreen';
+import StatsScreen from '../screens/StatsScreen';
 
 const Stack = createNativeStackNavigator();
 const Tab = createBottomTabNavigator();

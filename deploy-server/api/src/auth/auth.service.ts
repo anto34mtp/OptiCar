@@ -156,6 +156,18 @@ export class AuthService {
     return { message: 'Si cet email existe, un lien de réinitialisation a été envoyé.' };
   }
 
+  async checkResetToken(token: string) {
+    const resetToken = await this.prisma.passwordResetToken.findUnique({
+      where: { token },
+    });
+
+    if (!resetToken || resetToken.used || resetToken.expiresAt < new Date()) {
+      throw new BadRequestException('Ce lien est invalide, déjà utilisé ou expiré.');
+    }
+
+    return { valid: true };
+  }
+
   async resetPassword(dto: ResetPasswordDto) {
     const resetToken = await this.prisma.passwordResetToken.findUnique({
       where: { token: dto.token },

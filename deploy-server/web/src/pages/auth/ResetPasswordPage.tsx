@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
-import { useMutation } from '@tanstack/react-query';
+import { useMutation, useQuery } from '@tanstack/react-query';
 import { authService } from '../../services/auth';
 import Button from '../../components/ui/Button';
 import Input from '../../components/ui/Input';
@@ -25,6 +25,13 @@ export default function ResetPasswordPage() {
   const [fieldError, setFieldError] = useState('');
   const [done, setDone] = useState(false);
 
+  const tokenCheck = useQuery({
+    queryKey: ['reset-token', token],
+    queryFn: () => authService.checkResetToken(token),
+    enabled: !!token,
+    retry: false,
+  });
+
   const mutation = useMutation({
     mutationFn: () => authService.resetPassword(token, password),
     onSuccess: () => {
@@ -47,17 +54,36 @@ export default function ResetPasswordPage() {
     mutation.mutate();
   };
 
-  if (!token) {
+  const invalidBlock = (message: string) => (
+    <div className="min-h-screen flex items-center justify-center bg-gray-50 px-4">
+      <Card className="w-full max-w-md text-center space-y-4">
+        <div className="p-4 bg-red-50 border border-red-200 rounded-lg text-red-700 text-sm">
+          {message}
+        </div>
+        <Link
+          to="/forgot-password"
+          className="inline-block px-4 py-2 bg-primary-600 text-white rounded-lg text-sm font-medium hover:bg-primary-700"
+        >
+          Demander un nouveau lien
+        </Link>
+      </Card>
+    </div>
+  );
+
+  if (!token) return invalidBlock('Lien invalide ou manquant.');
+
+  if (tokenCheck.isLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gray-50 px-4">
-        <Card className="w-full max-w-md text-center space-y-4">
-          <p className="text-red-600 font-medium">Lien invalide ou manquant.</p>
-          <Link to="/forgot-password" className="text-primary-600 hover:text-primary-700 text-sm inline-block">
-            Demander un nouveau lien
-          </Link>
+        <Card className="w-full max-w-md text-center">
+          <p className="text-gray-500 text-sm">Vérification du lien...</p>
         </Card>
       </div>
     );
+  }
+
+  if (tokenCheck.isError) {
+    return invalidBlock(extractApiError(tokenCheck.error));
   }
 
   return (
@@ -75,19 +101,6 @@ export default function ResetPasswordPage() {
             </div>
             <Link to="/login" className="text-primary-600 hover:text-primary-700 text-sm font-medium">
               Se connecter maintenant
-            </Link>
-          </div>
-        ) : mutation.isError ? (
-          /* Lien déjà utilisé ou expiré — afficher uniquement le message d'erreur, bloquer le formulaire */
-          <div className="text-center space-y-4">
-            <div className="p-4 bg-red-50 border border-red-200 rounded-lg text-red-700 text-sm">
-              {extractApiError(mutation.error)}
-            </div>
-            <Link
-              to="/forgot-password"
-              className="inline-block px-4 py-2 bg-primary-600 text-white rounded-lg text-sm font-medium hover:bg-primary-700"
-            >
-              Demander un nouveau lien
             </Link>
           </div>
         ) : (

@@ -3,6 +3,7 @@ import {
   Post,
   Get,
   Body,
+  Query,
   UseGuards,
   HttpCode,
   HttpStatus,
@@ -37,6 +38,11 @@ export class AuthController {
   @UseGuards(JwtAuthGuard)
   async getProfile(@CurrentUser('id') userId: string) {
     return this.authService.getProfile(userId);
+  }
+
+  @Get('check-reset-token')
+  async checkResetToken(@Query('token') token: string) {
+    return this.authService.checkResetToken(token);
   }
 
   @Post('forgot-password')

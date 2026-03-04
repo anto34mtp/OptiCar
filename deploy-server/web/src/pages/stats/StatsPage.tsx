@@ -3,7 +3,7 @@ import { useQuery } from '@tanstack/react-query';
 import {
   LineChart, Line, BarChart, Bar,
   XAxis, YAxis, CartesianGrid, Tooltip,
-  ResponsiveContainer, Legend, Cell,
+  ResponsiveContainer, Cell,
 } from 'recharts';
 import { statsService } from '../../services/stats';
 import { vehiclesService } from '../../services/vehicles';

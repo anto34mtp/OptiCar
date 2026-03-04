@@ -1,5 +1,6 @@
 import axios from 'axios';
 import * as SecureStore from 'expo-secure-store';
+import { useAuthStore } from '../stores/authStore';
 
 // API URL from environment variable or default for development
 const API_URL = process.env.EXPO_PUBLIC_API_URL
@@ -26,7 +27,12 @@ api.interceptors.response.use(
   async (error) => {
     const originalRequest = error.config;
 
-    if (error.response?.status === 401 && !originalRequest._retry) {
+    // Ne pas tenter de refresh sur les endpoints d'auth eux-mêmes
+    const isAuthEndpoint = originalRequest.url?.includes('/auth/login') ||
+      originalRequest.url?.includes('/auth/register') ||
+      originalRequest.url?.includes('/auth/refresh');
+
+    if (error.response?.status === 401 && !originalRequest._retry && !isAuthEndpoint) {
       originalRequest._retry = true;
 
       const refreshToken = await SecureStore.getItemAsync('refreshToken');
@@ -45,10 +51,12 @@ api.interceptors.response.use(
           originalRequest.headers.Authorization = `Bearer ${accessToken}`;
           return api(originalRequest);
         } catch {
-          await SecureStore.deleteItemAsync('accessToken');
-          await SecureStore.deleteItemAsync('refreshToken');
-          await SecureStore.deleteItemAsync('user');
+          // Refresh échoué → déconnexion complète (store + SecureStore)
+          await useAuthStore.getState().logout();
         }
+      } else {
+        // Pas de refresh token → déconnexion
+        await useAuthStore.getState().logout();
       }
     }
 

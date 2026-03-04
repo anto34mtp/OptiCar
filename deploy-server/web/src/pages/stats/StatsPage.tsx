@@ -31,11 +31,6 @@ const TABS: { key: Tab; label: string }[] = [
   { key: 'eco',   label: 'Écologie CO2' },
 ];
 
-const COST_COLORS: Record<string, string> = {
-  fuel: '#3b82f6',
-  maintenance: '#f97316',
-  insurance: '#8b5cf6',
-};
 
 function KpiCard({ label, value, sub, color = '#111827', bg = 'white' }: {
   label: string; value: string; sub?: string; color?: string; bg?: string;

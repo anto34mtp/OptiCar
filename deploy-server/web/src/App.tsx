@@ -14,7 +14,6 @@ import MaintenancePage from './pages/maintenance/MaintenancePage';
 import VehicleMaintenancePage from './pages/maintenance/VehicleMaintenancePage';
 import AddMaintenancePage from './pages/maintenance/AddMaintenancePage';
 import MaintenanceRulesPage from './pages/maintenance/MaintenanceRulesPage';
-import TotalCostsPage from './pages/costs/TotalCostsPage';
 
 function PrivateRoute({ children }: { children: React.ReactNode }) {
   const isAuthenticated = useAuthStore((state) => state.isAuthenticated);

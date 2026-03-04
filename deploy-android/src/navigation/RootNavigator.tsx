@@ -12,13 +12,11 @@ import DashboardScreen from '../screens/DashboardScreen';
 import VehiclesScreen from '../screens/VehiclesScreen';
 import VehicleDetailScreen from '../screens/VehicleDetailScreen';
 import AddRefuelScreen from '../screens/AddRefuelScreen';
-import EcoScreen from '../screens/EcoScreen';
 import MaintenanceScreen from '../screens/MaintenanceScreen';
 import VehicleMaintenanceScreen from '../screens/VehicleMaintenanceScreen';
 import AddMaintenanceScreen from '../screens/AddMaintenanceScreen';
 import MaintenanceRulesScreen from '../screens/MaintenanceRulesScreen';
 import InsuranceScreen from '../screens/InsuranceScreen';
-import TotalCostsScreen from '../screens/TotalCostsScreen';
 import ForgotPasswordScreen from '../screens/ForgotPasswordScreen';
 
 const Stack = createNativeStackNavigator();
@@ -29,8 +27,7 @@ function TabIcon({ name, focused }: { name: string; focused: boolean }) {
     Dashboard: '🏠',
     Vehicles: '🚗',
     Maintenance: '🔧',
-    Costs: '💰',
-    Eco: '🌱',
+    Stats: '📊',
   };
   return (
     <Text style={{ fontSize: focused ? 24 : 20 }}>{icons[name]}</Text>
@@ -63,14 +60,9 @@ function MainTabs() {
         options={{ title: 'Entretien' }}
       />
       <Tab.Screen
-        name="Costs"
-        component={TotalCostsScreen}
-        options={{ title: 'Coûts' }}
-      />
-      <Tab.Screen
-        name="Eco"
-        component={EcoScreen}
-        options={{ title: 'Stats' }}
+        name="Stats"
+        component={StatsScreen}
+        options={{ title: 'Statistiques' }}
       />
     </Tab.Navigator>
   );

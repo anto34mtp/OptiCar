@@ -64,7 +64,7 @@ export default function App() {
         <Route path="maintenance/:vehicleId" element={<VehicleMaintenancePage />} />
         <Route path="maintenance/:vehicleId/add" element={<AddMaintenancePage />} />
         <Route path="maintenance/:vehicleId/rules" element={<MaintenanceRulesPage />} />
-        <Route path="costs" element={<TotalCostsPage />} />
+        <Route path="costs" element={<Navigate to="/stats" replace />} />
       </Route>
     </Routes>
   );

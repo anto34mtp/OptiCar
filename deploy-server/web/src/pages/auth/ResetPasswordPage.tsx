@@ -6,6 +6,15 @@ import Button from '../../components/ui/Button';
 import Input from '../../components/ui/Input';
 import Card from '../../components/ui/Card';
 
+function extractApiError(error: unknown): string {
+  if (error && typeof error === 'object' && 'response' in error) {
+    const resp = (error as any).response;
+    if (resp?.data?.message) return resp.data.message;
+    if (resp?.status === 400) return 'Ce lien est invalide, déjà utilisé ou expiré.';
+  }
+  return 'Une erreur est survenue. Réessayez.';
+}
+
 export default function ResetPasswordPage() {
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
@@ -41,9 +50,9 @@ export default function ResetPasswordPage() {
   if (!token) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gray-50 px-4">
-        <Card className="w-full max-w-md text-center">
+        <Card className="w-full max-w-md text-center space-y-4">
           <p className="text-red-600 font-medium">Lien invalide ou manquant.</p>
-          <Link to="/forgot-password" className="text-primary-600 hover:text-primary-700 text-sm mt-4 inline-block">
+          <Link to="/forgot-password" className="text-primary-600 hover:text-primary-700 text-sm inline-block">
             Demander un nouveau lien
           </Link>
         </Card>
@@ -62,17 +71,30 @@ export default function ResetPasswordPage() {
         {done ? (
           <div className="text-center space-y-4">
             <div className="p-4 bg-green-50 border border-green-200 rounded-lg text-green-800 text-sm">
-              Mot de passe mis à jour. Vous allez être redirigé vers la connexion...
+              ✓ Mot de passe mis à jour. Redirection en cours...
             </div>
             <Link to="/login" className="text-primary-600 hover:text-primary-700 text-sm font-medium">
               Se connecter maintenant
             </Link>
           </div>
+        ) : mutation.isError ? (
+          /* Lien déjà utilisé ou expiré — afficher uniquement le message d'erreur, bloquer le formulaire */
+          <div className="text-center space-y-4">
+            <div className="p-4 bg-red-50 border border-red-200 rounded-lg text-red-700 text-sm">
+              {extractApiError(mutation.error)}
+            </div>
+            <Link
+              to="/forgot-password"
+              className="inline-block px-4 py-2 bg-primary-600 text-white rounded-lg text-sm font-medium hover:bg-primary-700"
+            >
+              Demander un nouveau lien
+            </Link>
+          </div>
         ) : (
           <form onSubmit={handleSubmit} className="space-y-4">
-            {(fieldError || mutation.isError) && (
+            {fieldError && (
               <div className="p-3 bg-red-50 border border-red-200 rounded-lg text-red-700 text-sm">
-                {fieldError || 'Token invalide ou expiré. Demandez un nouveau lien.'}
+                {fieldError}
               </div>
             )}
             <Input
@@ -98,7 +120,6 @@ export default function ResetPasswordPage() {
             <Button type="submit" className="w-full" isLoading={mutation.isPending}>
               Réinitialiser le mot de passe
             </Button>
-
             <p className="text-center text-sm text-gray-600 mt-2">
               <Link to="/login" className="text-primary-600 hover:text-primary-700 font-medium">
                 Retour à la connexion

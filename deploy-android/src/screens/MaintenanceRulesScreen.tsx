@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import {
   View,
   Text,
@@ -12,8 +12,12 @@ import {
   ScrollView,
 } from 'react-native';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { Ionicons } from '@expo/vector-icons';
 import { maintenanceService } from '../services/api';
 import { Picker } from '@react-native-picker/picker';
+import { shadow } from '../theme';
+import type { ThemeColors } from '../theme';
+import { useThemeStore } from '../stores/themeStore';
 
 const PART_TYPE_LABELS: Record<string, string> = {
   VIDANGE: 'Vidange',
@@ -60,6 +64,9 @@ const CATEGORY_OPTIONS = [
 export default function MaintenanceRulesScreen({ route }: any) {
   const { vehicleId } = route.params;
   const queryClient = useQueryClient();
+
+  const { colors } = useThemeStore();
+  const styles = useMemo(() => makeStyles(colors), [colors]);
 
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editKm, setEditKm] = useState('');
@@ -109,7 +116,7 @@ export default function MaintenanceRulesScreen({ route }: any) {
       setShowAddModal(false);
       resetAddForm();
     },
-    onError: () => Alert.alert('Erreur', 'Impossible d\'ajouter la règle'),
+    onError: () => Alert.alert('Erreur', "Impossible d'ajouter la règle"),
   });
 
   const resetAddForm = () => {
@@ -146,62 +153,98 @@ export default function MaintenanceRulesScreen({ route }: any) {
   if (isLoading) {
     return (
       <View style={styles.center}>
-        <ActivityIndicator size="large" color="#3b82f6" />
+        <ActivityIndicator size="large" color={colors.primary} />
       </View>
     );
   }
 
   return (
     <View style={styles.container}>
+      {/* Top action row */}
       <View style={styles.topRow}>
         {(!rules || rules.length === 0) && (
           <TouchableOpacity
-            style={styles.btnPrimary}
+            style={styles.initBtn}
             onPress={() => initMutation.mutate()}
             disabled={initMutation.isPending}
           >
-            <Text style={styles.btnPrimaryText}>
-              {initMutation.isPending ? 'Initialisation...' : 'Initialiser par défaut'}
-            </Text>
+            {initMutation.isPending ? (
+              <ActivityIndicator color="#fff" size="small" />
+            ) : (
+              <>
+                <Ionicons name="flash-outline" size={15} color="#fff" />
+                <Text style={styles.initBtnText}>Initialiser par défaut</Text>
+              </>
+            )}
           </TouchableOpacity>
         )}
         <TouchableOpacity
-          style={[styles.btnAdd, (!rules || rules.length === 0) && { flex: 0 }]}
+          style={styles.addBtn}
           onPress={() => setShowAddModal(true)}
         >
-          <Text style={styles.btnAddText}>+ Ajouter</Text>
+          <Ionicons name="add" size={18} color="#fff" />
+          <Text style={styles.addBtnText}>Ajouter</Text>
         </TouchableOpacity>
       </View>
 
+      {/* Rules list */}
       <FlatList
         data={rules || []}
         keyExtractor={(item: any) => item.id}
+        contentContainerStyle={{ paddingBottom: 40 }}
+        ListEmptyComponent={
+          <View style={styles.emptyCard}>
+            <Ionicons name="settings-outline" size={36} color={colors.textLight} />
+            <Text style={styles.emptyTitle}>Aucune règle configurée</Text>
+            <Text style={styles.emptyText}>
+              Initialisez les règles par défaut ou ajoutez-en manuellement
+            </Text>
+          </View>
+        }
         renderItem={({ item }) => (
           <View style={styles.ruleCard}>
-            <Text style={styles.ruleName}>{PART_TYPE_LABELS[item.partType] || item.partType}</Text>
+            <View style={styles.ruleHeader}>
+              <View style={styles.ruleIconWrap}>
+                <Ionicons name="construct-outline" size={16} color={colors.primary} />
+              </View>
+              <Text style={styles.ruleName}>{PART_TYPE_LABELS[item.partType] || item.partType}</Text>
+            </View>
 
             {editingId === item.id ? (
-              <View>
-                <View style={styles.editRow}>
-                  <Text style={styles.editLabel}>Km:</Text>
-                  <TextInput
-                    style={styles.editInput}
-                    value={editKm}
-                    onChangeText={setEditKm}
-                    keyboardType="numeric"
-                    placeholder="km"
-                  />
-                  <Text style={styles.editLabel}>Mois:</Text>
-                  <TextInput
-                    style={styles.editInput}
-                    value={editMonths}
-                    onChangeText={setEditMonths}
-                    keyboardType="numeric"
-                    placeholder="mois"
-                  />
+              <View style={styles.editFormWrap}>
+                <View style={styles.editIntervalRow}>
+                  <View style={styles.editIntervalField}>
+                    <Text style={styles.editIntervalLabel}>Intervalle km</Text>
+                    <View style={styles.editInputWrap}>
+                      <Ionicons name="speedometer-outline" size={14} color={colors.textMid} />
+                      <TextInput
+                        style={styles.editInput}
+                        value={editKm}
+                        onChangeText={setEditKm}
+                        keyboardType="numeric"
+                        placeholder="ex: 15000"
+                        placeholderTextColor={colors.textLight}
+                      />
+                    </View>
+                  </View>
+                  <View style={styles.editIntervalField}>
+                    <Text style={styles.editIntervalLabel}>Intervalle mois</Text>
+                    <View style={styles.editInputWrap}>
+                      <Ionicons name="calendar-outline" size={14} color={colors.textMid} />
+                      <TextInput
+                        style={styles.editInput}
+                        value={editMonths}
+                        onChangeText={setEditMonths}
+                        keyboardType="numeric"
+                        placeholder="ex: 12"
+                        placeholderTextColor={colors.textLight}
+                      />
+                    </View>
+                  </View>
                 </View>
                 <View style={styles.editActions}>
                   <TouchableOpacity
+                    style={styles.saveBtn}
                     onPress={() =>
                       updateMutation.mutate({
                         id: item.id,
@@ -212,31 +255,51 @@ export default function MaintenanceRulesScreen({ route }: any) {
                       })
                     }
                   >
-                    <Text style={{ color: '#22c55e', fontWeight: '600' }}>Sauver</Text>
+                    <Ionicons name="checkmark" size={14} color="#fff" />
+                    <Text style={styles.saveBtnText}>Sauver</Text>
                   </TouchableOpacity>
-                  <TouchableOpacity onPress={() => setEditingId(null)}>
-                    <Text style={{ color: '#6b7280' }}>Annuler</Text>
+                  <TouchableOpacity style={styles.cancelBtn} onPress={() => setEditingId(null)}>
+                    <Text style={styles.cancelBtnText}>Annuler</Text>
                   </TouchableOpacity>
                 </View>
               </View>
             ) : (
               <View>
-                <Text style={styles.ruleInfo}>
-                  {item.intervalKm ? `${item.intervalKm.toLocaleString()} km` : '—'}
-                  {' · '}
-                  {item.intervalMonths ? `${item.intervalMonths} mois` : '—'}
-                </Text>
+                <View style={styles.ruleIntervals}>
+                  {item.intervalKm ? (
+                    <View style={styles.intervalBadge}>
+                      <Ionicons name="speedometer-outline" size={12} color={colors.primary} />
+                      <Text style={styles.intervalBadgeText}>
+                        {item.intervalKm.toLocaleString()} km
+                      </Text>
+                    </View>
+                  ) : null}
+                  {item.intervalMonths ? (
+                    <View style={styles.intervalBadge}>
+                      <Ionicons name="calendar-outline" size={12} color={colors.success} />
+                      <Text style={[styles.intervalBadgeText, { color: colors.success }]}>
+                        {item.intervalMonths} mois
+                      </Text>
+                    </View>
+                  ) : null}
+                  {!item.intervalKm && !item.intervalMonths && (
+                    <Text style={styles.noInterval}>Aucun intervalle défini</Text>
+                  )}
+                </View>
                 <View style={styles.ruleActions}>
                   <TouchableOpacity
+                    style={styles.ruleActionBtn}
                     onPress={() => {
                       setEditingId(item.id);
                       setEditKm(item.intervalKm?.toString() || '');
                       setEditMonths(item.intervalMonths?.toString() || '');
                     }}
                   >
-                    <Text style={{ color: '#3b82f6', fontSize: 13 }}>Modifier</Text>
+                    <Ionicons name="create-outline" size={14} color={colors.primary} />
+                    <Text style={styles.ruleActionEdit}>Modifier</Text>
                   </TouchableOpacity>
                   <TouchableOpacity
+                    style={[styles.ruleActionBtn, { backgroundColor: colors.dangerLight }]}
                     onPress={() =>
                       Alert.alert('Supprimer', 'Supprimer cette règle ?', [
                         { text: 'Annuler' },
@@ -244,52 +307,82 @@ export default function MaintenanceRulesScreen({ route }: any) {
                       ])
                     }
                   >
-                    <Text style={{ color: '#ef4444', fontSize: 13 }}>Supprimer</Text>
+                    <Ionicons name="trash-outline" size={14} color={colors.danger} />
+                    <Text style={styles.ruleActionDelete}>Supprimer</Text>
                   </TouchableOpacity>
                 </View>
               </View>
             )}
           </View>
         )}
-        ListEmptyComponent={<Text style={styles.empty}>Aucune règle. Initialisez par défaut ou ajoutez manuellement.</Text>}
       />
 
       {/* Add Rule Modal */}
-      <Modal transparent animationType="slide" visible={showAddModal} onRequestClose={() => setShowAddModal(false)}>
+      <Modal
+        transparent
+        animationType="slide"
+        visible={showAddModal}
+        onRequestClose={() => { setShowAddModal(false); resetAddForm(); }}
+      >
         <View style={styles.modalOverlay}>
           <View style={styles.modalBox}>
-            <ScrollView>
+            <ScrollView showsVerticalScrollIndicator={false}>
+              <View style={styles.modalHandle} />
               <Text style={styles.modalTitle}>Ajouter une règle</Text>
 
+              {/* Toggle Standard / Custom */}
               <View style={styles.toggleRow}>
                 <TouchableOpacity
                   style={[styles.toggleBtn, !isCustom && styles.toggleBtnActive]}
                   onPress={() => setIsCustom(false)}
                 >
-                  <Text style={[styles.toggleBtnText, !isCustom && styles.toggleBtnTextActive]}>Standard</Text>
+                  <Ionicons
+                    name="list-outline"
+                    size={14}
+                    color={!isCustom ? colors.primary : colors.textMid}
+                  />
+                  <Text style={[styles.toggleBtnText, !isCustom && styles.toggleBtnTextActive]}>
+                    Standard
+                  </Text>
                 </TouchableOpacity>
                 <TouchableOpacity
                   style={[styles.toggleBtn, isCustom && styles.toggleBtnActive]}
                   onPress={() => setIsCustom(true)}
                 >
-                  <Text style={[styles.toggleBtnText, isCustom && styles.toggleBtnTextActive]}>Personnalisé</Text>
+                  <Ionicons
+                    name="pencil-outline"
+                    size={14}
+                    color={isCustom ? colors.primary : colors.textMid}
+                  />
+                  <Text style={[styles.toggleBtnText, isCustom && styles.toggleBtnTextActive]}>
+                    Personnalisé
+                  </Text>
                 </TouchableOpacity>
               </View>
 
               {isCustom ? (
                 <>
                   <Text style={styles.fieldLabel}>Nom de la pièce</Text>
-                  <TextInput
-                    style={styles.fieldInput}
-                    placeholder="Ex: Filtre à huile de boîte"
-                    value={customPartType}
-                    onChangeText={setCustomPartType}
-                  />
+                  <View style={styles.inputWithIcon}>
+                    <Ionicons name="construct-outline" size={16} color={colors.textMid} style={styles.inputIcon} />
+                    <TextInput
+                      style={styles.inputInner}
+                      placeholder="Ex: Filtre à huile de boîte"
+                      placeholderTextColor={colors.textLight}
+                      value={customPartType}
+                      onChangeText={setCustomPartType}
+                    />
+                  </View>
+
                   <Text style={styles.fieldLabel}>Catégorie</Text>
                   <View style={styles.pickerWrap}>
-                    <Picker selectedValue={customCategory} onValueChange={setCustomCategory}>
+                    <Picker
+                      selectedValue={customCategory}
+                      onValueChange={setCustomCategory}
+                      dropdownIconColor={colors.textMid}
+                    >
                       {CATEGORY_OPTIONS.map((c) => (
-                        <Picker.Item key={c.value} label={c.label} value={c.value} />
+                        <Picker.Item key={c.value} label={c.label} value={c.value} color={colors.text} />
                       ))}
                     </Picker>
                   </View>
@@ -298,10 +391,14 @@ export default function MaintenanceRulesScreen({ route }: any) {
                 <>
                   <Text style={styles.fieldLabel}>Type de pièce</Text>
                   <View style={styles.pickerWrap}>
-                    <Picker selectedValue={addPartType} onValueChange={setAddPartType}>
-                      <Picker.Item label="Choisir..." value="" />
+                    <Picker
+                      selectedValue={addPartType}
+                      onValueChange={setAddPartType}
+                      dropdownIconColor={colors.textMid}
+                    >
+                      <Picker.Item label="Choisir..." value="" color={colors.textLight} />
                       {availableStandardTypes.map((t) => (
-                        <Picker.Item key={t} label={PART_TYPE_LABELS[t]} value={t} />
+                        <Picker.Item key={t} label={PART_TYPE_LABELS[t]} value={t} color={colors.text} />
                       ))}
                     </Picker>
                   </View>
@@ -309,33 +406,52 @@ export default function MaintenanceRulesScreen({ route }: any) {
               )}
 
               <Text style={styles.fieldLabel}>Intervalle kilométrique</Text>
-              <TextInput
-                style={styles.fieldInput}
-                placeholder="Ex: 15000"
-                value={addKm}
-                onChangeText={setAddKm}
-                keyboardType="numeric"
-              />
+              <View style={styles.inputWithIcon}>
+                <Ionicons name="speedometer-outline" size={16} color={colors.textMid} style={styles.inputIcon} />
+                <TextInput
+                  style={styles.inputInner}
+                  placeholder="Ex: 15 000"
+                  placeholderTextColor={colors.textLight}
+                  value={addKm}
+                  onChangeText={setAddKm}
+                  keyboardType="numeric"
+                />
+                <Text style={styles.inputUnit}>km</Text>
+              </View>
 
               <Text style={styles.fieldLabel}>Intervalle en mois</Text>
-              <TextInput
-                style={styles.fieldInput}
-                placeholder="Ex: 12"
-                value={addMonths}
-                onChangeText={setAddMonths}
-                keyboardType="numeric"
-              />
+              <View style={styles.inputWithIcon}>
+                <Ionicons name="calendar-outline" size={16} color={colors.textMid} style={styles.inputIcon} />
+                <TextInput
+                  style={styles.inputInner}
+                  placeholder="Ex: 12"
+                  placeholderTextColor={colors.textLight}
+                  value={addMonths}
+                  onChangeText={setAddMonths}
+                  keyboardType="numeric"
+                />
+                <Text style={styles.inputUnit}>mois</Text>
+              </View>
 
               <TouchableOpacity
-                style={styles.modalSaveBtn}
+                style={[styles.modalSaveBtn, createMutation.isPending && { opacity: 0.5 }]}
                 onPress={handleAddRule}
                 disabled={createMutation.isPending}
               >
-                <Text style={styles.modalSaveBtnText}>
-                  {createMutation.isPending ? 'Ajout...' : 'Ajouter'}
-                </Text>
+                {createMutation.isPending ? (
+                  <ActivityIndicator color="#fff" size="small" />
+                ) : (
+                  <>
+                    <Ionicons name="add-circle-outline" size={18} color="#fff" />
+                    <Text style={styles.modalSaveBtnText}>Ajouter la règle</Text>
+                  </>
+                )}
               </TouchableOpacity>
-              <TouchableOpacity style={styles.modalCancelBtn} onPress={() => { setShowAddModal(false); resetAddForm(); }}>
+
+              <TouchableOpacity
+                style={styles.modalCancelBtn}
+                onPress={() => { setShowAddModal(false); resetAddForm(); }}
+              >
                 <Text style={styles.modalCancelText}>Annuler</Text>
               </TouchableOpacity>
             </ScrollView>
@@ -346,36 +462,235 @@ export default function MaintenanceRulesScreen({ route }: any) {
   );
 }
 
-const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#f9fafb', padding: 16 },
-  center: { flex: 1, justifyContent: 'center', alignItems: 'center' },
-  topRow: { flexDirection: 'row', gap: 8, marginBottom: 16, alignItems: 'center' },
-  btnPrimary: { flex: 1, backgroundColor: '#3b82f6', padding: 14, borderRadius: 8, alignItems: 'center' },
-  btnPrimaryText: { color: '#fff', fontWeight: '600', fontSize: 15 },
-  btnAdd: { backgroundColor: '#10b981', paddingHorizontal: 16, paddingVertical: 14, borderRadius: 8, alignItems: 'center' },
-  btnAddText: { color: '#fff', fontWeight: '600', fontSize: 15 },
-  ruleCard: { backgroundColor: '#fff', borderRadius: 10, padding: 14, marginBottom: 8, borderWidth: 1, borderColor: '#e5e7eb' },
-  ruleName: { fontSize: 14, fontWeight: '600', color: '#1f2937', marginBottom: 4 },
-  ruleInfo: { fontSize: 13, color: '#6b7280' },
-  ruleActions: { flexDirection: 'row', gap: 16, marginTop: 8 },
-  editRow: { flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 8 },
-  editLabel: { fontSize: 13, color: '#6b7280' },
-  editInput: { borderWidth: 1, borderColor: '#d1d5db', borderRadius: 6, paddingHorizontal: 8, paddingVertical: 4, width: 70, fontSize: 13 },
-  editActions: { flexDirection: 'row', gap: 16, marginTop: 10 },
-  empty: { textAlign: 'center', color: '#9ca3af', marginTop: 40, fontSize: 13 },
-  modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'flex-end' },
-  modalBox: { backgroundColor: '#fff', borderTopLeftRadius: 20, borderTopRightRadius: 20, padding: 24, maxHeight: '85%' },
-  modalTitle: { fontSize: 18, fontWeight: '700', color: '#111827', marginBottom: 16, textAlign: 'center' },
-  toggleRow: { flexDirection: 'row', backgroundColor: '#f3f4f6', borderRadius: 8, padding: 4, marginBottom: 16 },
-  toggleBtn: { flex: 1, paddingVertical: 8, alignItems: 'center', borderRadius: 6 },
-  toggleBtnActive: { backgroundColor: '#fff', shadowColor: '#000', shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.1, shadowRadius: 2, elevation: 2 },
-  toggleBtnText: { fontSize: 14, color: '#6b7280', fontWeight: '500' },
-  toggleBtnTextActive: { color: '#111827' },
-  fieldLabel: { fontSize: 13, fontWeight: '500', color: '#374151', marginBottom: 6, marginTop: 12 },
-  fieldInput: { borderWidth: 1, borderColor: '#d1d5db', borderRadius: 8, padding: 12, fontSize: 15 },
-  pickerWrap: { borderWidth: 1, borderColor: '#d1d5db', borderRadius: 8, backgroundColor: '#fff' },
-  modalSaveBtn: { backgroundColor: '#3b82f6', borderRadius: 10, padding: 16, alignItems: 'center', marginTop: 20 },
+const makeStyles = (c: ThemeColors) => StyleSheet.create({
+  container: { flex: 1, backgroundColor: c.background, padding: 16 },
+  center: { flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: c.background },
+
+  // Top row
+  topRow: { flexDirection: 'row', gap: 10, marginBottom: 16, alignItems: 'center' },
+  initBtn: {
+    flex: 1,
+    backgroundColor: c.primary,
+    padding: 14,
+    borderRadius: 12,
+    alignItems: 'center',
+    flexDirection: 'row',
+    justifyContent: 'center',
+    gap: 8,
+    ...shadow.sm,
+  },
+  initBtnText: { color: '#fff', fontWeight: '700', fontSize: 14 },
+  addBtn: {
+    backgroundColor: c.success,
+    paddingHorizontal: 18,
+    paddingVertical: 14,
+    borderRadius: 12,
+    alignItems: 'center',
+    flexDirection: 'row',
+    gap: 6,
+    ...shadow.sm,
+  },
+  addBtnText: { color: '#fff', fontWeight: '700', fontSize: 14 },
+
+  // Empty
+  emptyCard: {
+    backgroundColor: c.card,
+    borderRadius: 14,
+    padding: 40,
+    alignItems: 'center',
+    gap: 8,
+    borderWidth: 1,
+    borderColor: c.border,
+    marginTop: 8,
+  },
+  emptyTitle: { fontSize: 15, fontWeight: '700', color: c.textMid, marginTop: 4 },
+  emptyText: { fontSize: 13, color: c.textLight, textAlign: 'center', lineHeight: 20 },
+
+  // Rule cards
+  ruleCard: {
+    backgroundColor: c.card,
+    borderRadius: 14,
+    padding: 16,
+    marginBottom: 10,
+    borderWidth: 1,
+    borderColor: c.border,
+    ...shadow.sm,
+  },
+  ruleHeader: { flexDirection: 'row', alignItems: 'center', gap: 10, marginBottom: 10 },
+  ruleIconWrap: {
+    width: 32,
+    height: 32,
+    borderRadius: 9,
+    backgroundColor: c.primaryLight,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  ruleName: { fontSize: 15, fontWeight: '700', color: c.text, flex: 1 },
+
+  // Interval badges
+  ruleIntervals: { flexDirection: 'row', gap: 8, flexWrap: 'wrap', marginBottom: 10, justifyContent: 'center' },
+  intervalBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+    backgroundColor: c.primaryLight,
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderRadius: 20,
+    borderWidth: 1,
+    borderColor: c.primaryMid,
+  },
+  intervalBadgeText: { fontSize: 12, color: c.primary, fontWeight: '600' },
+  noInterval: { fontSize: 12, color: c.textLight, fontStyle: 'italic' },
+
+  // Rule actions
+  ruleActions: {
+    flexDirection: 'row',
+    gap: 8,
+    justifyContent: 'center',
+    borderTopWidth: 1,
+    borderTopColor: c.borderLight,
+    paddingTop: 10,
+  },
+  ruleActionBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+    paddingHorizontal: 12,
+    paddingVertical: 7,
+    borderRadius: 8,
+    backgroundColor: c.primaryLight,
+  },
+  ruleActionEdit: { color: c.primary, fontSize: 13, fontWeight: '600' },
+  ruleActionDelete: { color: c.danger, fontSize: 13, fontWeight: '600' },
+
+  // Edit form
+  editFormWrap: {
+    backgroundColor: c.background,
+    borderRadius: 10,
+    padding: 12,
+    marginTop: 4,
+  },
+  editIntervalRow: { flexDirection: 'row', gap: 10 },
+  editIntervalField: { flex: 1 },
+  editIntervalLabel: { fontSize: 11, fontWeight: '600', color: c.textLight, marginBottom: 6, textTransform: 'uppercase', letterSpacing: 0.5 },
+  editInputWrap: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    backgroundColor: c.inputBg,
+    borderWidth: 1,
+    borderColor: c.inputBorder,
+    borderRadius: 10,
+    paddingHorizontal: 10,
+    paddingVertical: 9,
+  },
+  editInput: { flex: 1, fontSize: 14, color: c.text },
+  editActions: { flexDirection: 'row', justifyContent: 'center', gap: 8, marginTop: 12 },
+  saveBtn: {
+    backgroundColor: c.primary,
+    paddingHorizontal: 16,
+    paddingVertical: 9,
+    borderRadius: 9,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+  },
+  saveBtnText: { color: '#fff', fontWeight: '700', fontSize: 13 },
+  cancelBtn: {
+    paddingHorizontal: 16,
+    paddingVertical: 9,
+    borderRadius: 9,
+    backgroundColor: c.card,
+    borderWidth: 1,
+    borderColor: c.border,
+  },
+  cancelBtnText: { color: c.textMid, fontSize: 13, fontWeight: '600' },
+
+  // Modal
+  modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.6)', justifyContent: 'flex-end' },
+  modalBox: {
+    backgroundColor: c.card,
+    borderTopLeftRadius: 24,
+    borderTopRightRadius: 24,
+    padding: 24,
+    paddingTop: 14,
+    maxHeight: '90%',
+    borderWidth: 1,
+    borderBottomWidth: 0,
+    borderColor: c.border,
+  },
+  modalHandle: {
+    width: 40,
+    height: 4,
+    backgroundColor: c.border,
+    borderRadius: 2,
+    alignSelf: 'center',
+    marginBottom: 20,
+  },
+  modalTitle: { fontSize: 18, fontWeight: '800', color: c.text, marginBottom: 16, textAlign: 'center' },
+
+  // Toggle
+  toggleRow: {
+    flexDirection: 'row',
+    backgroundColor: c.background,
+    borderRadius: 12,
+    padding: 4,
+    marginBottom: 16,
+    borderWidth: 1,
+    borderColor: c.border,
+  },
+  toggleBtn: {
+    flex: 1,
+    paddingVertical: 10,
+    alignItems: 'center',
+    borderRadius: 9,
+    flexDirection: 'row',
+    justifyContent: 'center',
+    gap: 6,
+  },
+  toggleBtnActive: {
+    backgroundColor: c.card,
+    ...shadow.sm,
+  },
+  toggleBtnText: { fontSize: 14, color: c.textMid, fontWeight: '500' },
+  toggleBtnTextActive: { color: c.primary, fontWeight: '700' },
+
+  // Form fields
+  fieldLabel: { fontSize: 13, fontWeight: '600', color: c.textMid, marginBottom: 8, marginTop: 14 },
+  inputWithIcon: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: c.inputBg,
+    borderWidth: 1,
+    borderColor: c.inputBorder,
+    borderRadius: 12,
+    overflow: 'hidden',
+  },
+  inputIcon: { marginLeft: 14, marginRight: 4 },
+  inputInner: { flex: 1, paddingVertical: 14, paddingHorizontal: 8, fontSize: 15, color: c.text },
+  inputUnit: { paddingRight: 14, fontSize: 14, color: c.textMid, fontWeight: '600' },
+  pickerWrap: {
+    backgroundColor: c.inputBg,
+    borderWidth: 1,
+    borderColor: c.inputBorder,
+    borderRadius: 12,
+    overflow: 'hidden',
+  },
+
+  // Modal buttons
+  modalSaveBtn: {
+    backgroundColor: c.primary,
+    borderRadius: 12,
+    padding: 16,
+    alignItems: 'center',
+    marginTop: 24,
+    flexDirection: 'row',
+    justifyContent: 'center',
+    gap: 8,
+    ...shadow.sm,
+  },
   modalSaveBtnText: { color: '#fff', fontWeight: '700', fontSize: 15 },
-  modalCancelBtn: { padding: 14, alignItems: 'center' },
-  modalCancelText: { color: '#6b7280', fontSize: 14 },
+  modalCancelBtn: { padding: 14, alignItems: 'center', marginTop: 4 },
+  modalCancelText: { color: c.textMid, fontSize: 14, fontWeight: '500' },
 });

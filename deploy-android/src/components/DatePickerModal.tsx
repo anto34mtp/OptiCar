@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Modal, View, Text, TouchableOpacity, StyleSheet } from 'react-native';
 import { Picker } from '@react-native-picker/picker';
 
@@ -19,10 +19,19 @@ interface Props {
 }
 
 export default function DatePickerModal({ visible, value, onConfirm, onCancel }: Props) {
-  const parsed = value ? new Date(value + 'T12:00:00') : new Date();
-  const [year, setYear] = useState(parsed.getFullYear());
-  const [month, setMonth] = useState(parsed.getMonth() + 1);
-  const [day, setDay] = useState(parsed.getDate());
+  const parse = (v: string) => (v ? new Date(v + 'T12:00:00') : new Date());
+  const [year, setYear] = useState(() => parse(value).getFullYear());
+  const [month, setMonth] = useState(() => parse(value).getMonth() + 1);
+  const [day, setDay] = useState(() => parse(value).getDate());
+
+  useEffect(() => {
+    if (visible) {
+      const d = parse(value);
+      setYear(d.getFullYear());
+      setMonth(d.getMonth() + 1);
+      setDay(d.getDate());
+    }
+  }, [visible, value]);
 
   const currentYear = new Date().getFullYear();
   const years = Array.from({ length: 10 }, (_, i) => currentYear - i);

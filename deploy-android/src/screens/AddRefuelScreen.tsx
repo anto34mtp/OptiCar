@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import {
   View,
   Text,
@@ -13,16 +13,22 @@ import {
 import { useRoute, useNavigation } from '@react-navigation/native';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import * as ImagePicker from 'expo-image-picker';
+import { Ionicons } from '@expo/vector-icons';
 import { vehiclesService, refuelsService, ocrService } from '../services/api';
 import { useAuthStore } from '../stores/authStore';
 import { Picker } from '@react-native-picker/picker';
 import DatePickerModal from '../components/DatePickerModal';
+import { shadow } from '../theme';
+import type { ThemeColors } from '../theme';
+import { useThemeStore } from '../stores/themeStore';
 
 const sourceTypes = [
-  { value: 'TICKET', label: 'Ticket de caisse' },
-  { value: 'PUMP', label: 'Pompe à essence' },
-  { value: 'MANUAL', label: 'Saisie manuelle' },
+  { value: 'TICKET', label: 'Ticket de caisse', icon: 'receipt-outline' as const },
+  { value: 'PUMP', label: 'Pompe', icon: 'flame-outline' as const },
+  { value: 'MANUAL', label: 'Manuel', icon: 'pencil-outline' as const },
 ];
+
+type Step = 'vehicle' | 'capture' | 'verify';
 
 export default function AddRefuelScreen() {
   const route = useRoute<any>();
@@ -31,7 +37,10 @@ export default function AddRefuelScreen() {
   const isLocalMode = useAuthStore((state) => state.isLocalMode);
   const preselectedVehicleId = route.params?.vehicleId;
 
-  const [step, setStep] = useState<'vehicle' | 'capture' | 'verify'>('vehicle');
+  const { colors } = useThemeStore();
+  const styles = useMemo(() => makeStyles(colors), [colors]);
+
+  const [step, setStep] = useState<Step>('vehicle');
   const [selectedVehicleId, setSelectedVehicleId] = useState(preselectedVehicleId || '');
   const [sourceType, setSourceType] = useState('TICKET');
   const [imageUri, setImageUri] = useState<string | null>(null);
@@ -118,7 +127,7 @@ export default function AddRefuelScreen() {
 
       if (currentMileage > 0 && enteredMileage < currentMileage) {
         Alert.alert(
-          '⚠️ Kilométrage incorrect',
+          'Kilométrage incorrect',
           `Le kilométrage saisi (${enteredMileage.toLocaleString('fr-FR')} km) est inférieur au dernier kilométrage enregistré (${currentMileage.toLocaleString('fr-FR')} km).\n\nVoulez-vous corriger ou continuer quand même ?`,
           [
             { text: 'Corriger', style: 'cancel' },
@@ -154,7 +163,7 @@ export default function AddRefuelScreen() {
       ]);
     },
     onError: () => {
-      Alert.alert('Erreur', 'Impossible d\'enregistrer le plein');
+      Alert.alert('Erreur', "Impossible d'enregistrer le plein");
     },
   });
 
@@ -173,7 +182,7 @@ export default function AddRefuelScreen() {
   const takePhoto = async () => {
     const { status } = await ImagePicker.requestCameraPermissionsAsync();
     if (status !== 'granted') {
-      Alert.alert('Permission requise', 'L\'accès à la caméra est nécessaire');
+      Alert.alert('Permission requise', "L'accès à la caméra est nécessaire");
       return;
     }
 
@@ -205,53 +214,103 @@ export default function AddRefuelScreen() {
       }
       setStep('verify');
     } catch (error) {
-      Alert.alert('Erreur OCR', 'Impossible d\'analyser l\'image. Saisissez les données manuellement.');
+      Alert.alert('Erreur OCR', "Impossible d'analyser l'image. Saisissez les données manuellement.");
       setStep('verify');
     } finally {
       setIsAnalyzing(false);
     }
   };
 
+  // Smart calc: which field would be auto-computed
+  const getAutoCalcHint = (field: 'pricePerLiter' | 'liters' | 'totalPrice') => {
+    const ppl = parseFloat(formData.pricePerLiter);
+    const liters = parseFloat(formData.liters);
+    const total = parseFloat(formData.totalPrice);
+    const hasPpl = !isNaN(ppl) && ppl > 0;
+    const hasLiters = !isNaN(liters) && liters > 0;
+    const hasTotal = !isNaN(total) && total > 0;
+
+    if (field === 'totalPrice' && hasPpl && hasLiters) return true;
+    if (field === 'liters' && hasPpl && hasTotal) return true;
+    if (field === 'pricePerLiter' && hasLiters && hasTotal) return true;
+    return false;
+  };
+
+  const stepIndex = step === 'vehicle' ? 0 : step === 'capture' ? 1 : 2;
+
   return (
-    <ScrollView style={styles.container}>
+    <ScrollView style={styles.container} showsVerticalScrollIndicator={false}>
+      {/* Step Indicator */}
+      <View style={styles.stepIndicator}>
+        {['Véhicule', 'Capture', 'Vérifier'].map((label, i) => (
+          <View key={i} style={styles.stepItem}>
+            <View style={[
+              styles.stepDot,
+              i === stepIndex && styles.stepDotActive,
+              i < stepIndex && styles.stepDotDone,
+            ]}>
+              {i < stepIndex
+                ? <Ionicons name="checkmark" size={13} color="#fff" />
+                : <Text style={[styles.stepDotText, i === stepIndex && styles.stepDotTextActive]}>{i + 1}</Text>
+              }
+            </View>
+            <Text style={[styles.stepLabel, i === stepIndex && styles.stepLabelActive]}>{label}</Text>
+            {i < 2 && <View style={[styles.stepLine, i < stepIndex && styles.stepLineDone]} />}
+          </View>
+        ))}
+      </View>
+
       {/* Step 1: Vehicle selection */}
       {step === 'vehicle' && (
         <View style={styles.section}>
-          <Text style={styles.stepTitle}>1. Sélectionner le véhicule</Text>
+          <Text style={styles.sectionTitle}>Sélectionner le véhicule</Text>
 
-          <View style={styles.pickerContainer}>
+          <Text style={styles.fieldLabel}>Véhicule</Text>
+          <View style={styles.pickerCard}>
+            <Ionicons name="car-outline" size={18} color={colors.textMid} style={{ marginLeft: 14 }} />
             <Picker
               selectedValue={selectedVehicleId}
               onValueChange={setSelectedVehicleId}
+              style={styles.picker}
+              dropdownIconColor={colors.textMid}
             >
-              <Picker.Item label="Choisir un véhicule..." value="" />
+              <Picker.Item label="Choisir un véhicule..." value="" color={colors.textLight} />
               {vehicles?.map((v: any) => (
                 <Picker.Item
                   key={v.id}
                   label={`${v.brand} ${v.model}`}
                   value={v.id}
+                  color={colors.text}
                 />
               ))}
             </Picker>
           </View>
 
-          <Text style={styles.label}>Kilométrage actuel</Text>
-          <TextInput
-            style={styles.input}
-            placeholder="Ex: 45000"
-            value={formData.mileage}
-            onChangeText={(text) => setFormData({ ...formData, mileage: text })}
-            keyboardType="numeric"
-          />
+          <Text style={styles.fieldLabel}>Kilométrage actuel</Text>
+          <View style={styles.inputWithIcon}>
+            <Ionicons name="speedometer-outline" size={18} color={colors.textMid} style={styles.inputIcon} />
+            <TextInput
+              style={styles.inputInner}
+              placeholder="Ex: 45 000"
+              placeholderTextColor={colors.textLight}
+              value={formData.mileage}
+              onChangeText={(text) => setFormData({ ...formData, mileage: text })}
+              keyboardType="numeric"
+            />
+            <Text style={styles.inputUnit}>km</Text>
+          </View>
 
           <TouchableOpacity
-            style={[styles.button, (!selectedVehicleId || !formData.mileage || mileageChecking) && styles.buttonDisabled]}
+            style={[styles.primaryButton, (!selectedVehicleId || !formData.mileage || mileageChecking) && styles.buttonDisabled]}
             onPress={handleContinue}
             disabled={!selectedVehicleId || !formData.mileage || mileageChecking}
           >
             {mileageChecking
               ? <ActivityIndicator color="#fff" size="small" />
-              : <Text style={styles.buttonText}>Continuer</Text>
+              : <>
+                  <Text style={styles.primaryButtonText}>Continuer</Text>
+                  <Ionicons name="arrow-forward" size={18} color="#fff" />
+                </>
             }
           </TouchableOpacity>
         </View>
@@ -260,23 +319,33 @@ export default function AddRefuelScreen() {
       {/* Step 2: Capture */}
       {step === 'capture' && (
         <View style={styles.section}>
-          <Text style={styles.stepTitle}>2. Capturer les données</Text>
+          <Text style={styles.sectionTitle}>Capturer les données</Text>
 
-          <Text style={styles.label}>Type de source</Text>
-          <View style={styles.pickerContainer}>
-            <Picker
-              selectedValue={sourceType}
-              onValueChange={setSourceType}
-            >
-              {sourceTypes.map((type) => (
-                <Picker.Item key={type.value} label={type.label} value={type.value} />
-              ))}
-            </Picker>
+          <Text style={styles.fieldLabel}>Type de source</Text>
+          <View style={styles.sourceTypeRow}>
+            {sourceTypes.map((type) => (
+              <TouchableOpacity
+                key={type.value}
+                style={[styles.sourceTypeChip, sourceType === type.value && styles.sourceTypeChipActive]}
+                onPress={() => setSourceType(type.value)}
+              >
+                <Ionicons
+                  name={type.icon}
+                  size={14}
+                  color={sourceType === type.value ? colors.primary : colors.textMid}
+                />
+                <Text style={[styles.sourceTypeText, sourceType === type.value && styles.sourceTypeTextActive]}>
+                  {type.label}
+                </Text>
+              </TouchableOpacity>
+            ))}
           </View>
 
           {isLocalMode ? (
             <View style={styles.ocrDisabledBox}>
-              <Text style={styles.ocrDisabledIcon}>📷</Text>
+              <View style={styles.ocrDisabledIconWrap}>
+                <Ionicons name="camera-outline" size={34} color={colors.textLight} />
+              </View>
               <Text style={styles.ocrDisabledTitle}>Scan non disponible</Text>
               <Text style={styles.ocrDisabledText}>
                 La reconnaissance de ticket/pompe nécessite un compte.{'\n'}
@@ -284,20 +353,27 @@ export default function AddRefuelScreen() {
               </Text>
             </View>
           ) : isAnalyzing ? (
-            <View style={styles.analyzing}>
-              <ActivityIndicator size="large" color="#3b82f6" />
+            <View style={styles.analyzingBox}>
+              <ActivityIndicator size="large" color={colors.primary} />
               <Text style={styles.analyzingText}>Analyse en cours...</Text>
+              <Text style={styles.analyzingSubText}>L'IA extrait les données de votre image</Text>
             </View>
           ) : (
             <View style={styles.captureButtons}>
-              <TouchableOpacity style={styles.captureButton} onPress={takePhoto}>
-                <Text style={styles.captureIcon}>📷</Text>
-                <Text style={styles.captureText}>Prendre une photo</Text>
+              <TouchableOpacity style={styles.captureCard} onPress={takePhoto}>
+                <View style={styles.captureIconWrap}>
+                  <Ionicons name="camera" size={34} color={colors.primary} />
+                </View>
+                <Text style={styles.captureCardTitle}>Prendre une photo</Text>
+                <Text style={styles.captureCardSub}>Appareil photo</Text>
               </TouchableOpacity>
 
-              <TouchableOpacity style={styles.captureButton} onPress={pickImage}>
-                <Text style={styles.captureIcon}>🖼️</Text>
-                <Text style={styles.captureText}>Choisir une image</Text>
+              <TouchableOpacity style={styles.captureCard} onPress={pickImage}>
+                <View style={styles.captureIconWrap}>
+                  <Ionicons name="image" size={34} color={colors.primary} />
+                </View>
+                <Text style={styles.captureCardTitle}>Choisir une image</Text>
+                <Text style={styles.captureCardSub}>Depuis la galerie</Text>
               </TouchableOpacity>
             </View>
           )}
@@ -309,10 +385,12 @@ export default function AddRefuelScreen() {
               setStep('verify');
             }}
           >
+            <Ionicons name="pencil-outline" size={16} color={colors.textMid} />
             <Text style={styles.manualButtonText}>Saisie manuelle</Text>
           </TouchableOpacity>
 
           <TouchableOpacity style={styles.backButton} onPress={() => setStep('vehicle')}>
+            <Ionicons name="arrow-back" size={16} color={colors.textLight} />
             <Text style={styles.backButtonText}>Retour</Text>
           </TouchableOpacity>
         </View>
@@ -321,7 +399,7 @@ export default function AddRefuelScreen() {
       {/* Step 3: Verify */}
       {step === 'verify' && (
         <View style={styles.section}>
-          <Text style={styles.stepTitle}>3. Vérifier les données</Text>
+          <Text style={styles.sectionTitle}>Vérifier les données</Text>
 
           <DatePickerModal
             visible={showDatePicker}
@@ -329,53 +407,88 @@ export default function AddRefuelScreen() {
             onConfirm={(d) => { setFormData((p) => ({ ...p, date: d })); setShowDatePicker(false); }}
             onCancel={() => setShowDatePicker(false)}
           />
-          <Text style={styles.label}>Date du plein</Text>
+
+          <Text style={styles.fieldLabel}>Date du plein</Text>
           <TouchableOpacity style={styles.dateInput} onPress={() => setShowDatePicker(true)}>
-            <Text style={styles.dateInputText}>📅 {formData.date}</Text>
+            <Ionicons name="calendar-outline" size={18} color={colors.primary} />
+            <Text style={styles.dateInputText}>{formData.date}</Text>
+            <Ionicons name="chevron-down" size={16} color={colors.textLight} />
           </TouchableOpacity>
 
           {imageUri && (
             <Image source={{ uri: imageUri }} style={styles.preview} />
           )}
 
-          <Text style={styles.label}>Prix au litre (€)</Text>
-          <TextInput
-            style={styles.input}
-            placeholder="Ex: 1.789"
-            value={formData.pricePerLiter}
-            onChangeText={handlePricePerLiter}
-            keyboardType="decimal-pad"
-          />
+          {/* Smart calc info banner */}
+          <View style={styles.calcInfoBanner}>
+            <Ionicons name="flash" size={14} color={colors.primary} />
+            <Text style={styles.calcInfoText}>Les champs manquants sont calculés automatiquement</Text>
+          </View>
 
-          <Text style={styles.label}>Quantité (L)</Text>
-          <TextInput
-            style={styles.input}
-            placeholder="Ex: 45.32"
-            value={formData.liters}
-            onChangeText={handleLiters}
-            keyboardType="decimal-pad"
-          />
+          <Text style={styles.fieldLabel}>Prix au litre (€)</Text>
+          <View style={[styles.inputWithIcon, getAutoCalcHint('pricePerLiter') && styles.inputAutoCalc]}>
+            <Ionicons name="pricetag-outline" size={18} color={colors.textMid} style={styles.inputIcon} />
+            <TextInput
+              style={styles.inputInner}
+              placeholder="Ex: 1.789"
+              placeholderTextColor={colors.textLight}
+              value={formData.pricePerLiter}
+              onChangeText={handlePricePerLiter}
+              keyboardType="decimal-pad"
+            />
+            {getAutoCalcHint('pricePerLiter') && (
+              <Ionicons name="flash" size={14} color={colors.primary} style={{ marginRight: 12 }} />
+            )}
+          </View>
 
-          <Text style={styles.label}>Prix total (€)</Text>
-          <TextInput
-            style={styles.input}
-            placeholder="Ex: 75.50"
-            value={formData.totalPrice}
-            onChangeText={handleTotalPrice}
-            keyboardType="decimal-pad"
-          />
+          <Text style={styles.fieldLabel}>Quantité (L)</Text>
+          <View style={[styles.inputWithIcon, getAutoCalcHint('liters') && styles.inputAutoCalc]}>
+            <Ionicons name="water-outline" size={18} color={colors.textMid} style={styles.inputIcon} />
+            <TextInput
+              style={styles.inputInner}
+              placeholder="Ex: 45.32"
+              placeholderTextColor={colors.textLight}
+              value={formData.liters}
+              onChangeText={handleLiters}
+              keyboardType="decimal-pad"
+            />
+            {getAutoCalcHint('liters') && (
+              <Ionicons name="flash" size={14} color={colors.primary} style={{ marginRight: 12 }} />
+            )}
+          </View>
+
+          <Text style={styles.fieldLabel}>Prix total (€)</Text>
+          <View style={[styles.inputWithIcon, getAutoCalcHint('totalPrice') && styles.inputAutoCalc]}>
+            <Ionicons name="cash-outline" size={18} color={colors.textMid} style={styles.inputIcon} />
+            <TextInput
+              style={styles.inputInner}
+              placeholder="Ex: 75.50"
+              placeholderTextColor={colors.textLight}
+              value={formData.totalPrice}
+              onChangeText={handleTotalPrice}
+              keyboardType="decimal-pad"
+            />
+            {getAutoCalcHint('totalPrice') && (
+              <Ionicons name="flash" size={14} color={colors.primary} style={{ marginRight: 12 }} />
+            )}
+          </View>
 
           <TouchableOpacity
-            style={styles.button}
+            style={[styles.primaryButton, createMutation.isPending && styles.buttonDisabled]}
             onPress={() => createMutation.mutate()}
             disabled={createMutation.isPending}
           >
-            <Text style={styles.buttonText}>
-              {createMutation.isPending ? 'Enregistrement...' : 'Enregistrer le plein'}
-            </Text>
+            {createMutation.isPending
+              ? <ActivityIndicator color="#fff" size="small" />
+              : <>
+                  <Ionicons name="checkmark-circle-outline" size={18} color="#fff" />
+                  <Text style={styles.primaryButtonText}>Enregistrer le plein</Text>
+                </>
+            }
           </TouchableOpacity>
 
           <TouchableOpacity style={styles.backButton} onPress={() => setStep('capture')}>
+            <Ionicons name="arrow-back" size={16} color={colors.textLight} />
             <Text style={styles.backButtonText}>Retour</Text>
           </TouchableOpacity>
         </View>
@@ -384,136 +497,222 @@ export default function AddRefuelScreen() {
   );
 }
 
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#f9fafb',
+const makeStyles = (c: ThemeColors) => StyleSheet.create({
+  container: { flex: 1, backgroundColor: c.background },
+
+  // Step indicator
+  stepIndicator: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: 24,
+    paddingVertical: 20,
+    backgroundColor: c.card,
+    borderBottomWidth: 1,
+    borderBottomColor: c.border,
   },
-  section: {
-    padding: 20,
+  stepItem: { flexDirection: 'row', alignItems: 'center' },
+  stepDot: {
+    width: 30,
+    height: 30,
+    borderRadius: 15,
+    backgroundColor: c.background,
+    borderWidth: 2,
+    borderColor: c.border,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
-  stepTitle: {
-    fontSize: 20,
-    fontWeight: 'bold',
-    color: '#111827',
-    marginBottom: 20,
-  },
-  label: {
-    fontSize: 14,
-    fontWeight: '500',
-    color: '#374151',
-    marginBottom: 8,
-    marginTop: 16,
-  },
-  input: {
-    backgroundColor: 'white',
+  stepDotActive: { backgroundColor: c.primary, borderColor: c.primary },
+  stepDotDone: { backgroundColor: c.success, borderColor: c.success },
+  stepDotText: { fontSize: 12, fontWeight: '700', color: c.textLight },
+  stepDotTextActive: { color: '#fff' },
+  stepLabel: { fontSize: 11, color: c.textLight, marginLeft: 6, fontWeight: '500' },
+  stepLabelActive: { color: c.primary, fontWeight: '700' },
+  stepLine: { width: 28, height: 2, backgroundColor: c.border, marginHorizontal: 6 },
+  stepLineDone: { backgroundColor: c.success },
+
+  // Section
+  section: { padding: 20 },
+  sectionTitle: { fontSize: 20, fontWeight: '800', color: c.text, marginBottom: 20 },
+  fieldLabel: { fontSize: 13, fontWeight: '600', color: c.textMid, marginBottom: 8, marginTop: 16 },
+
+  // Picker card
+  pickerCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: c.inputBg,
     borderWidth: 1,
-    borderColor: '#d1d5db',
+    borderColor: c.inputBorder,
     borderRadius: 12,
-    padding: 16,
-    fontSize: 16,
+    marginBottom: 4,
+    overflow: 'hidden',
   },
-  pickerContainer: {
-    backgroundColor: 'white',
+  picker: { flex: 1, color: c.text },
+
+  // Input with icon
+  inputWithIcon: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: c.inputBg,
     borderWidth: 1,
-    borderColor: '#d1d5db',
+    borderColor: c.inputBorder,
     borderRadius: 12,
-    marginBottom: 8,
+    overflow: 'hidden',
   },
-  button: {
-    backgroundColor: '#3b82f6',
+  inputAutoCalc: {
+    borderColor: c.primary,
+    backgroundColor: c.primaryLight,
+  },
+  inputIcon: { marginLeft: 14, marginRight: 4 },
+  inputInner: { flex: 1, paddingVertical: 14, paddingHorizontal: 8, fontSize: 15, color: c.text },
+  inputUnit: { paddingRight: 14, fontSize: 14, color: c.textMid, fontWeight: '600' },
+
+  // Buttons
+  primaryButton: {
+    backgroundColor: c.primary,
     borderRadius: 12,
     padding: 16,
     alignItems: 'center',
     marginTop: 24,
-  },
-  buttonDisabled: {
-    opacity: 0.5,
-  },
-  buttonText: {
-    color: 'white',
-    fontSize: 16,
-    fontWeight: '600',
-  },
-  captureButtons: {
     flexDirection: 'row',
-    gap: 12,
-    marginTop: 20,
+    justifyContent: 'center',
+    gap: 10,
+    ...shadow.sm,
   },
-  captureButton: {
+  buttonDisabled: { opacity: 0.45 },
+  primaryButtonText: { color: '#fff', fontSize: 16, fontWeight: '700' },
+
+  // Source type chips
+  sourceTypeRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginBottom: 4 },
+  sourceTypeChip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    paddingHorizontal: 14,
+    paddingVertical: 9,
+    borderRadius: 20,
+    backgroundColor: c.card,
+    borderWidth: 1.5,
+    borderColor: c.border,
+  },
+  sourceTypeChipActive: { backgroundColor: c.primaryLight, borderColor: c.primary },
+  sourceTypeText: { fontSize: 13, color: c.textMid, fontWeight: '500' },
+  sourceTypeTextActive: { color: c.primary, fontWeight: '700' },
+
+  // Capture cards
+  captureButtons: { flexDirection: 'row', gap: 12, marginTop: 8 },
+  captureCard: {
     flex: 1,
-    backgroundColor: 'white',
+    backgroundColor: c.card,
     borderWidth: 2,
-    borderColor: '#3b82f6',
-    borderRadius: 12,
-    padding: 24,
+    borderColor: c.primaryMid,
+    borderRadius: 16,
+    padding: 22,
     alignItems: 'center',
-  },
-  captureIcon: {
-    fontSize: 32,
-    marginBottom: 8,
-  },
-  captureText: {
-    color: '#3b82f6',
-    fontWeight: '500',
-  },
-  analyzing: {
-    alignItems: 'center',
-    padding: 40,
-  },
-  analyzingText: {
-    marginTop: 16,
-    color: '#6b7280',
-  },
-  manualButton: {
-    borderWidth: 1,
-    borderColor: '#d1d5db',
-    borderRadius: 12,
-    padding: 16,
-    alignItems: 'center',
-    marginTop: 16,
-  },
-  manualButtonText: {
-    color: '#374151',
-    fontWeight: '500',
-  },
-  backButton: {
-    padding: 16,
-    alignItems: 'center',
-    marginTop: 12,
-  },
-  backButtonText: {
-    color: '#6b7280',
-  },
-  ocrDisabledBox: {
-    backgroundColor: '#f9fafb',
-    borderWidth: 1,
-    borderColor: '#e5e7eb',
-    borderRadius: 12,
-    padding: 24,
-    alignItems: 'center',
-    marginTop: 20,
     gap: 8,
+    ...shadow.sm,
   },
-  ocrDisabledIcon: { fontSize: 36 },
-  ocrDisabledTitle: { fontSize: 16, fontWeight: '600', color: '#374151' },
-  ocrDisabledText: { fontSize: 13, color: '#9ca3af', textAlign: 'center', lineHeight: 20 },
-  preview: {
-    width: '100%',
-    height: 200,
-    borderRadius: 12,
-    marginBottom: 16,
+  captureIconWrap: {
+    width: 64,
+    height: 64,
+    borderRadius: 18,
+    backgroundColor: c.primaryLight,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 4,
   },
-  dateInput: {
-    backgroundColor: 'white',
+  captureCardTitle: { color: c.text, fontWeight: '700', fontSize: 14, textAlign: 'center' },
+  captureCardSub: { color: c.textLight, fontSize: 12, textAlign: 'center' },
+
+  // Analyzing
+  analyzingBox: {
+    alignItems: 'center',
+    padding: 44,
+    gap: 12,
+    backgroundColor: c.card,
+    borderRadius: 16,
+    marginTop: 8,
     borderWidth: 1,
-    borderColor: '#d1d5db',
+    borderColor: c.border,
+  },
+  analyzingText: { color: c.text, fontWeight: '700', fontSize: 16 },
+  analyzingSubText: { color: c.textLight, fontSize: 13 },
+
+  // OCR disabled
+  ocrDisabledBox: {
+    backgroundColor: c.card,
+    borderWidth: 1,
+    borderColor: c.border,
+    borderRadius: 16,
+    padding: 32,
+    alignItems: 'center',
+    marginTop: 8,
+    gap: 10,
+  },
+  ocrDisabledIconWrap: {
+    width: 68,
+    height: 68,
+    borderRadius: 20,
+    backgroundColor: c.background,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 4,
+  },
+  ocrDisabledTitle: { fontSize: 16, fontWeight: '700', color: c.text },
+  ocrDisabledText: { fontSize: 13, color: c.textLight, textAlign: 'center', lineHeight: 20 },
+
+  // Manual / back
+  manualButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    borderWidth: 1.5,
+    borderColor: c.border,
     borderRadius: 12,
-    padding: 16,
-    marginBottom: 0,
+    padding: 14,
+    marginTop: 16,
+    backgroundColor: c.card,
   },
-  dateInputText: {
-    fontSize: 15,
-    color: '#111827',
+  manualButtonText: { color: c.textMid, fontWeight: '600', fontSize: 15 },
+  backButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+    padding: 14,
+    marginTop: 8,
   },
+  backButtonText: { color: c.textLight, fontSize: 14 },
+
+  // Date input
+  dateInput: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    backgroundColor: c.inputBg,
+    borderWidth: 1,
+    borderColor: c.inputBorder,
+    borderRadius: 12,
+    padding: 14,
+  },
+  dateInputText: { flex: 1, fontSize: 15, color: c.text, fontWeight: '500' },
+
+  // Preview
+  preview: { width: '100%', height: 200, borderRadius: 12, marginBottom: 4, marginTop: 12 },
+
+  // Smart calc banner
+  calcInfoBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    backgroundColor: c.primaryLight,
+    borderRadius: 10,
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+    marginTop: 16,
+    borderWidth: 1,
+    borderColor: c.primaryMid,
+  },
+  calcInfoText: { fontSize: 12, color: c.primary, fontWeight: '500', flex: 1 },
 });

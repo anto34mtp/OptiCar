@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import DatePickerModal from '../components/DatePickerModal';
 import {
   View,
@@ -13,8 +13,12 @@ import {
 } from 'react-native';
 import { Picker } from '@react-native-picker/picker';
 import * as ImagePicker from 'expo-image-picker';
+import { Ionicons } from '@expo/vector-icons';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { maintenanceService } from '../services/api';
+import { shadow } from '../theme';
+import type { ThemeColors } from '../theme';
+import { useThemeStore } from '../stores/themeStore';
 
 const PART_TYPES = [
   { value: 'VIDANGE', label: 'Vidange' },
@@ -40,6 +44,9 @@ const PART_TYPES = [
 export default function AddMaintenanceScreen({ route, navigation }: any) {
   const { vehicleId } = route.params;
   const queryClient = useQueryClient();
+
+  const { colors } = useThemeStore();
+  const styles = useMemo(() => makeStyles(colors), [colors]);
 
   const [mode, setMode] = useState<'manual' | 'scan'>('manual');
   const [date, setDate] = useState(new Date().toISOString().split('T')[0]);
@@ -120,95 +127,168 @@ export default function AddMaintenanceScreen({ route, navigation }: any) {
   };
 
   return (
-    <ScrollView style={styles.container}>
+    <ScrollView style={styles.container} showsVerticalScrollIndicator={false}>
       {/* Mode tabs */}
       <View style={styles.tabs}>
         <TouchableOpacity
           style={[styles.tab, mode === 'manual' && styles.tabActive]}
           onPress={() => setMode('manual')}
         >
+          <Ionicons
+            name="pencil-outline"
+            size={16}
+            color={mode === 'manual' ? colors.primary : colors.textMid}
+          />
           <Text style={[styles.tabText, mode === 'manual' && styles.tabTextActive]}>Manuel</Text>
         </TouchableOpacity>
         <TouchableOpacity
           style={[styles.tab, mode === 'scan' && styles.tabActive]}
           onPress={() => setMode('scan')}
         >
-          <Text style={[styles.tabText, mode === 'scan' && styles.tabTextActive]}>Scanner</Text>
+          <Ionicons
+            name="scan-outline"
+            size={16}
+            color={mode === 'scan' ? colors.primary : colors.textMid}
+          />
+          <Text style={[styles.tabText, mode === 'scan' && styles.tabTextActive]}>Scanner facture</Text>
         </TouchableOpacity>
       </View>
 
+      {/* Scan mode */}
       {mode === 'scan' && (
         <View style={styles.scanSection}>
           <View style={styles.scanButtons}>
-            <TouchableOpacity style={styles.btnSecondary} onPress={takePhoto}>
-              <Text style={styles.btnSecondaryText}>Photo</Text>
+            <TouchableOpacity style={styles.scanCard} onPress={takePhoto}>
+              <View style={styles.scanIconWrap}>
+                <Ionicons name="camera" size={28} color={colors.primary} />
+              </View>
+              <Text style={styles.scanCardLabel}>Photo</Text>
             </TouchableOpacity>
-            <TouchableOpacity style={styles.btnSecondary} onPress={pickImage}>
-              <Text style={styles.btnSecondaryText}>Galerie</Text>
+            <TouchableOpacity style={styles.scanCard} onPress={pickImage}>
+              <View style={styles.scanIconWrap}>
+                <Ionicons name="image" size={28} color={colors.primary} />
+              </View>
+              <Text style={styles.scanCardLabel}>Galerie</Text>
             </TouchableOpacity>
           </View>
+
           {scanImage && (
             <Image source={{ uri: scanImage }} style={styles.preview} resizeMode="contain" />
           )}
+
           <TouchableOpacity
-            style={[styles.btnPrimary, (!scanImage || scanning) && { opacity: 0.5 }]}
+            style={[styles.analyzeBtn, (!scanImage || scanning) && styles.btnDisabled]}
             onPress={handleScan}
             disabled={!scanImage || scanning}
           >
             {scanning ? (
-              <ActivityIndicator color="#fff" />
+              <ActivityIndicator color="#fff" size="small" />
             ) : (
-              <Text style={styles.btnPrimaryText}>Analyser</Text>
+              <>
+                <Ionicons name="flash-outline" size={18} color="#fff" />
+                <Text style={styles.analyzeBtnText}>Analyser la facture</Text>
+              </>
             )}
           </TouchableOpacity>
         </View>
       )}
 
+      {/* Manual form */}
       {mode === 'manual' && (
         <View style={styles.form}>
-          <Text style={styles.label}>Date</Text>
           <DatePickerModal
             visible={showDatePicker}
             value={date}
             onConfirm={(d) => { setDate(d); setShowDatePicker(false); }}
             onCancel={() => setShowDatePicker(false)}
           />
-          <TouchableOpacity
-            style={[styles.input, { justifyContent: 'center' }]}
-            onPress={() => setShowDatePicker(true)}
-          >
-            <Text style={{ fontSize: 15, color: '#111827' }}>📅 {date}</Text>
+
+          <Text style={styles.fieldLabel}>Date</Text>
+          <TouchableOpacity style={styles.dateInput} onPress={() => setShowDatePicker(true)}>
+            <Ionicons name="calendar-outline" size={18} color={colors.primary} />
+            <Text style={styles.dateInputText}>{date}</Text>
+            <Ionicons name="chevron-down" size={16} color={colors.textLight} />
           </TouchableOpacity>
 
-          <Text style={styles.label}>Kilométrage</Text>
-          <TextInput style={styles.input} value={mileage} onChangeText={setMileage} keyboardType="numeric" />
+          <Text style={styles.fieldLabel}>Kilométrage</Text>
+          <View style={styles.inputWithIcon}>
+            <Ionicons name="speedometer-outline" size={18} color={colors.textMid} style={styles.inputIcon} />
+            <TextInput
+              style={styles.inputInner}
+              value={mileage}
+              onChangeText={setMileage}
+              keyboardType="numeric"
+              placeholder="Ex: 45 000"
+              placeholderTextColor={colors.textLight}
+            />
+            <Text style={styles.inputUnit}>km</Text>
+          </View>
 
-          <Text style={styles.label}>Type de pièce</Text>
+          <Text style={styles.fieldLabel}>Type d'entretien</Text>
           <View style={styles.pickerContainer}>
-            <Picker selectedValue={partType} onValueChange={setPartType}>
+            <Ionicons name="construct-outline" size={18} color={colors.textMid} style={{ marginLeft: 14 }} />
+            <Picker
+              selectedValue={partType}
+              onValueChange={setPartType}
+              style={styles.picker}
+              dropdownIconColor={colors.textMid}
+            >
               {PART_TYPES.map((pt) => (
-                <Picker.Item key={pt.value} label={pt.label} value={pt.value} />
+                <Picker.Item key={pt.value} label={pt.label} value={pt.value} color={colors.text} />
               ))}
             </Picker>
           </View>
 
-          <Text style={styles.label}>Prix (€)</Text>
-          <TextInput style={styles.input} value={price} onChangeText={setPrice} keyboardType="decimal-pad" />
+          <Text style={styles.fieldLabel}>Prix (€)</Text>
+          <View style={styles.inputWithIcon}>
+            <Ionicons name="cash-outline" size={18} color={colors.textMid} style={styles.inputIcon} />
+            <TextInput
+              style={styles.inputInner}
+              value={price}
+              onChangeText={setPrice}
+              keyboardType="decimal-pad"
+              placeholder="Ex: 89.00"
+              placeholderTextColor={colors.textLight}
+            />
+            <Text style={styles.inputUnit}>€</Text>
+          </View>
 
-          <Text style={styles.label}>Garage</Text>
-          <TextInput style={styles.input} value={garage} onChangeText={setGarage} />
+          <Text style={styles.fieldLabel}>Garage</Text>
+          <View style={styles.inputWithIcon}>
+            <Ionicons name="business-outline" size={18} color={colors.textMid} style={styles.inputIcon} />
+            <TextInput
+              style={styles.inputInner}
+              value={garage}
+              onChangeText={setGarage}
+              placeholder="Nom du garage (optionnel)"
+              placeholderTextColor={colors.textLight}
+            />
+          </View>
 
-          <Text style={styles.label}>Notes</Text>
-          <TextInput style={[styles.input, { height: 80 }]} value={notes} onChangeText={setNotes} multiline />
+          <Text style={styles.fieldLabel}>Notes</Text>
+          <TextInput
+            style={styles.textArea}
+            value={notes}
+            onChangeText={setNotes}
+            multiline
+            numberOfLines={3}
+            placeholder="Notes complémentaires (optionnel)"
+            placeholderTextColor={colors.textLight}
+          />
 
           <TouchableOpacity
-            style={[styles.btnPrimary, createMutation.isPending && { opacity: 0.5 }]}
+            style={[styles.submitBtn, createMutation.isPending && styles.btnDisabled]}
             onPress={handleSubmit}
             disabled={createMutation.isPending}
           >
-            <Text style={styles.btnPrimaryText}>
-              {createMutation.isPending ? 'Enregistrement...' : 'Enregistrer'}
-            </Text>
+            {createMutation.isPending ? (
+              <ActivityIndicator color="#fff" size="small" />
+            ) : (
+              <>
+                <Ionicons name="checkmark-circle-outline" size={18} color="#fff" />
+                <Text style={styles.submitBtnText}>Enregistrer l'entretien</Text>
+              </>
+            )}
           </TouchableOpacity>
         </View>
       )}
@@ -218,22 +298,139 @@ export default function AddMaintenanceScreen({ route, navigation }: any) {
   );
 }
 
-const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#f9fafb', padding: 16 },
-  tabs: { flexDirection: 'row', marginBottom: 16, borderBottomWidth: 1, borderBottomColor: '#e5e7eb' },
-  tab: { flex: 1, paddingVertical: 12, alignItems: 'center' },
-  tabActive: { borderBottomWidth: 2, borderBottomColor: '#3b82f6' },
-  tabText: { fontSize: 14, color: '#6b7280' },
-  tabTextActive: { color: '#3b82f6', fontWeight: '600' },
+const makeStyles = (c: ThemeColors) => StyleSheet.create({
+  container: { flex: 1, backgroundColor: c.background, padding: 16 },
+
+  // Tabs
+  tabs: {
+    flexDirection: 'row',
+    backgroundColor: c.card,
+    borderRadius: 14,
+    padding: 4,
+    marginBottom: 20,
+    borderWidth: 1,
+    borderColor: c.border,
+  },
+  tab: {
+    flex: 1,
+    paddingVertical: 11,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+    borderRadius: 10,
+  },
+  tabActive: {
+    backgroundColor: c.primaryLight,
+    ...shadow.sm,
+  },
+  tabText: { fontSize: 14, color: c.textMid, fontWeight: '500' },
+  tabTextActive: { color: c.primary, fontWeight: '700' },
+
+  // Scan section
   scanSection: { marginBottom: 16 },
-  scanButtons: { flexDirection: 'row', gap: 10, marginBottom: 12 },
-  preview: { width: '100%', height: 200, borderRadius: 8, marginBottom: 12 },
+  scanButtons: { flexDirection: 'row', gap: 12, marginBottom: 16 },
+  scanCard: {
+    flex: 1,
+    backgroundColor: c.card,
+    borderRadius: 14,
+    padding: 20,
+    alignItems: 'center',
+    gap: 10,
+    borderWidth: 2,
+    borderColor: c.primaryMid,
+    ...shadow.sm,
+  },
+  scanIconWrap: {
+    width: 56,
+    height: 56,
+    borderRadius: 16,
+    backgroundColor: c.primaryLight,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  scanCardLabel: { fontSize: 14, fontWeight: '700', color: c.text },
+  preview: { width: '100%', height: 200, borderRadius: 12, marginBottom: 16 },
+  analyzeBtn: {
+    backgroundColor: c.primary,
+    padding: 16,
+    borderRadius: 12,
+    alignItems: 'center',
+    flexDirection: 'row',
+    justifyContent: 'center',
+    gap: 8,
+    ...shadow.sm,
+  },
+  analyzeBtnText: { color: '#fff', fontWeight: '700', fontSize: 15 },
+  btnDisabled: { opacity: 0.45 },
+
+  // Manual form
   form: {},
-  label: { fontSize: 14, fontWeight: '500', color: '#374151', marginBottom: 4, marginTop: 12 },
-  input: { backgroundColor: '#fff', borderWidth: 1, borderColor: '#d1d5db', borderRadius: 8, padding: 12, fontSize: 14 },
-  pickerContainer: { backgroundColor: '#fff', borderWidth: 1, borderColor: '#d1d5db', borderRadius: 8 },
-  btnPrimary: { backgroundColor: '#3b82f6', padding: 14, borderRadius: 8, alignItems: 'center', marginTop: 16 },
-  btnPrimaryText: { color: '#fff', fontWeight: '600', fontSize: 15 },
-  btnSecondary: { backgroundColor: '#f3f4f6', padding: 12, borderRadius: 8, flex: 1, alignItems: 'center' },
-  btnSecondaryText: { color: '#374151', fontWeight: '600', fontSize: 14 },
+  fieldLabel: { fontSize: 13, fontWeight: '600', color: c.textMid, marginBottom: 8, marginTop: 16 },
+
+  // Date input
+  dateInput: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    backgroundColor: c.inputBg,
+    borderWidth: 1,
+    borderColor: c.inputBorder,
+    borderRadius: 12,
+    padding: 14,
+  },
+  dateInputText: { flex: 1, fontSize: 15, color: c.text, fontWeight: '500' },
+
+  // Input with icon
+  inputWithIcon: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: c.inputBg,
+    borderWidth: 1,
+    borderColor: c.inputBorder,
+    borderRadius: 12,
+    overflow: 'hidden',
+  },
+  inputIcon: { marginLeft: 14, marginRight: 4 },
+  inputInner: { flex: 1, paddingVertical: 14, paddingHorizontal: 8, fontSize: 15, color: c.text },
+  inputUnit: { paddingRight: 14, fontSize: 14, color: c.textMid, fontWeight: '600' },
+
+  // Picker
+  pickerContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: c.inputBg,
+    borderWidth: 1,
+    borderColor: c.inputBorder,
+    borderRadius: 12,
+    overflow: 'hidden',
+  },
+  picker: { flex: 1, color: c.text },
+
+  // Text area
+  textArea: {
+    backgroundColor: c.inputBg,
+    borderWidth: 1,
+    borderColor: c.inputBorder,
+    borderRadius: 12,
+    padding: 14,
+    fontSize: 14,
+    color: c.text,
+    minHeight: 90,
+    textAlignVertical: 'top',
+  },
+
+  // Submit
+  submitBtn: {
+    backgroundColor: c.primary,
+    padding: 16,
+    borderRadius: 12,
+    alignItems: 'center',
+    marginTop: 24,
+    flexDirection: 'row',
+    justifyContent: 'center',
+    gap: 8,
+    ...shadow.sm,
+  },
+  submitBtnText: { color: '#fff', fontWeight: '700', fontSize: 15 },
 });

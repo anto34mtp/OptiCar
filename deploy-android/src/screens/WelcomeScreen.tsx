@@ -1,11 +1,15 @@
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet, StatusBar, Modal, TextInput } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { useAuthStore } from '../stores/authStore';
+import type { ThemeColors } from '../theme';
+import { useThemeStore } from '../stores/themeStore';
 
 export default function WelcomeScreen() {
   const navigation = useNavigation<any>();
   const { setLocalMode, setHasChosenMode, setLocalUserName } = useAuthStore();
+  const { colors } = useThemeStore();
+  const styles = useMemo(() => makeStyles(colors), [colors]);
   const [showNameModal, setShowNameModal] = useState(false);
   const [nameInput, setNameInput] = useState('');
 
@@ -44,6 +48,7 @@ export default function WelcomeScreen() {
             <TextInput
               style={styles.modalInput}
               placeholder="Ex: Thomas"
+              placeholderTextColor={colors.textLight}
               value={nameInput}
               onChangeText={setNameInput}
               maxLength={15}
@@ -123,10 +128,10 @@ export default function WelcomeScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const makeStyles = (c: ThemeColors) => StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#1d4ed8',
+    backgroundColor: c.headerBg,
   },
   header: {
     flex: 1,
@@ -170,7 +175,7 @@ const styles = StyleSheet.create({
     fontSize: 14,
   },
   actions: {
-    backgroundColor: '#fff',
+    backgroundColor: c.card,
     borderTopLeftRadius: 28,
     borderTopRightRadius: 28,
     padding: 28,
@@ -178,7 +183,7 @@ const styles = StyleSheet.create({
     gap: 12,
   },
   primaryButton: {
-    backgroundColor: '#1d4ed8',
+    backgroundColor: c.primary,
     borderRadius: 14,
     padding: 18,
     alignItems: 'center',
@@ -205,7 +210,7 @@ const styles = StyleSheet.create({
   dividerLine: {
     flex: 1,
     height: 1,
-    backgroundColor: '#e5e7eb',
+    backgroundColor: c.border,
   },
   dividerText: {
     fontSize: 12,
@@ -213,13 +218,13 @@ const styles = StyleSheet.create({
   },
   localButton: {
     borderWidth: 1.5,
-    borderColor: '#d1d5db',
+    borderColor: c.border,
     borderRadius: 14,
     padding: 18,
     alignItems: 'center',
   },
   localButtonText: {
-    color: '#374151',
+    color: c.text,
     fontSize: 16,
     fontWeight: '600',
   },
@@ -236,11 +241,11 @@ const styles = StyleSheet.create({
     marginTop: 4,
   },
   loginText: {
-    color: '#6b7280',
+    color: c.text,
     fontSize: 14,
   },
   loginLink: {
-    color: '#1d4ed8',
+    color: c.primary,
     fontWeight: '600',
   },
   modalOverlay: {
@@ -251,7 +256,7 @@ const styles = StyleSheet.create({
     padding: 24,
   },
   modalBox: {
-    backgroundColor: '#fff',
+    backgroundColor: c.card,
     borderRadius: 16,
     padding: 24,
     width: '100%',
@@ -260,7 +265,7 @@ const styles = StyleSheet.create({
   modalTitle: {
     fontSize: 20,
     fontWeight: '700',
-    color: '#111827',
+    color: c.text,
     textAlign: 'center',
   },
   modalSubtitle: {
@@ -271,14 +276,16 @@ const styles = StyleSheet.create({
   },
   modalInput: {
     borderWidth: 1,
-    borderColor: '#d1d5db',
+    borderColor: c.border,
     borderRadius: 10,
     padding: 14,
     fontSize: 16,
     marginTop: 4,
+    color: c.text,
+    backgroundColor: c.inputBg,
   },
   modalBtn: {
-    backgroundColor: '#1d4ed8',
+    backgroundColor: c.primary,
     borderRadius: 10,
     padding: 16,
     alignItems: 'center',

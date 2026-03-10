@@ -100,9 +100,20 @@ export const localVehiclesService = {
   async getWithStats(id: string) {
     const v = await localVehiclesService.getOne(id);
     const stats = await localStatsService.getVehicleStats(id);
-    const refuels = await getLocalData<any[]>(KEYS.REFUELS, []);
-    const vRefuels = refuels.filter((r) => r.vehicleId === id);
-    return { ...v, ...stats, refuels: vRefuels, _count: { refuels: vRefuels.length } };
+    const allRefuels = await getLocalData<any[]>(KEYS.REFUELS, []);
+    const allRecords = await getLocalData<any[]>(KEYS.MAINT_RECORDS, []);
+    const vRefuels = allRefuels.filter((r) => r.vehicleId === id);
+    const vRecords = allRecords.filter((r) => r.vehicleId === id);
+    const allMileages = [
+      ...vRefuels.map((r) => r.mileage ?? 0),
+      ...vRecords.map((r) => r.mileage ?? 0),
+    ];
+    const currentMileage = allMileages.length > 0 ? Math.max(...allMileages) : 0;
+    return {
+      ...v,
+      _count: { refuels: vRefuels.length },
+      stats: { ...stats, currentMileage },
+    };
   },
 
   async create(data: any) {

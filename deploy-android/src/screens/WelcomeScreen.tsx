@@ -46,8 +46,12 @@ export default function WelcomeScreen() {
               placeholder="Ex: Thomas"
               value={nameInput}
               onChangeText={setNameInput}
+              maxLength={15}
               autoFocus
             />
+            <Text style={{ fontSize: 11, color: '#9ca3af', textAlign: 'right', marginTop: -8 }}>
+              {nameInput.length}/15
+            </Text>
             <TouchableOpacity style={styles.modalBtn} onPress={confirmLocalMode}>
               <Text style={styles.modalBtnText}>Continuer</Text>
             </TouchableOpacity>

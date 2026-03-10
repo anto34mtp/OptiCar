@@ -26,8 +26,8 @@
         <action android:name="android.intent.action.VIEW"/>
         <category android:name="android.intent.category.DEFAULT"/>
         <category android:name="android.intent.category.BROWSABLE"/>
-        <data android:scheme="historiquevoiture"/>
-        <data android:scheme="com.historiquevoiture.app"/>
+        <data android:scheme="opticar-dev"/>
+        <data android:scheme="com.opticar.dev"/>
       </intent-filter>
     </activity>
   </application>

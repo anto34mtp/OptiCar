@@ -40,11 +40,15 @@ export const useAuthStore = create<AuthState>((set) => ({
     await SecureStore.setItemAsync('accessToken', accessToken);
     await SecureStore.setItemAsync('refreshToken', refreshToken);
     await SecureStore.setItemAsync('user', JSON.stringify(user));
+    await AsyncStorage.removeItem('app-mode');
     set({
       user,
       accessToken,
       refreshToken,
       isAuthenticated: true,
+      isLocalMode: false,
+      hasChosenMode: true,
+      localUserName: null,
     });
   },
 
@@ -52,11 +56,15 @@ export const useAuthStore = create<AuthState>((set) => ({
     await SecureStore.deleteItemAsync('accessToken');
     await SecureStore.deleteItemAsync('refreshToken');
     await SecureStore.deleteItemAsync('user');
+    await AsyncStorage.removeItem('app-mode');
     set({
       user: null,
       accessToken: null,
       refreshToken: null,
       isAuthenticated: false,
+      isLocalMode: false,
+      hasChosenMode: false,
+      localUserName: null,
     });
   },
 

@@ -86,12 +86,12 @@ android {
     buildToolsVersion rootProject.ext.buildToolsVersion
     compileSdk rootProject.ext.compileSdkVersion
 
-    namespace 'com.historiquevoiture.app'
+    namespace 'com.opticar.dev'
     defaultConfig {
-        applicationId 'com.historiquevoiture.app'
+        applicationId 'com.opticar.dev'
         minSdkVersion rootProject.ext.minSdkVersion
         targetSdkVersion rootProject.ext.targetSdkVersion
-        versionCode 3
+        versionCode 1
         versionName "2.1"
     }
     signingConfigs {

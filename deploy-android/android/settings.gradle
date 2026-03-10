@@ -21,7 +21,7 @@ extensions.configure(com.facebook.react.ReactSettingsExtension) { ex ->
   }
 }
 
-rootProject.name = 'OptiCar'
+rootProject.name = 'OptiCar DEV'
 
 dependencyResolutionManagement {
   versionCatalogs {

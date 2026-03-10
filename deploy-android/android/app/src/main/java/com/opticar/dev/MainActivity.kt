@@ -1,4 +1,4 @@
-package com.historiquevoiture.app
+package com.opticar.dev
 
 import android.os.Build
 import android.os.Bundle

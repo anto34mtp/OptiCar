@@ -13,6 +13,7 @@ import { useNavigation } from '@react-navigation/native';
 import { useMutation } from '@tanstack/react-query';
 import { authService } from '../services/api';
 import { useAuthStore } from '../stores/authStore';
+import { clearAllLocalData } from '../services/local';
 
 export default function LoginScreen() {
   const navigation = useNavigation<any>();
@@ -23,6 +24,7 @@ export default function LoginScreen() {
   const loginMutation = useMutation({
     mutationFn: () => authService.login(email, password),
     onSuccess: async (data) => {
+      await clearAllLocalData();
       await setAuth(data.user, data.accessToken, data.refreshToken);
     },
     onError: () => {

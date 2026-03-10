@@ -38,6 +38,12 @@ function fmtKg(g: number) {
   const kg = g / 1000;
   return kg >= 1000 ? `${(kg / 1000).toFixed(2)} t` : `${kg.toFixed(1)} kg`;
 }
+function toMonthLabel(isoMonth: string, long = false) {
+  const parts = isoMonth.split('-');
+  if (parts.length < 2) return isoMonth;
+  const date = new Date(parseInt(parts[0]), parseInt(parts[1]) - 1, 1);
+  return date.toLocaleDateString('fr-FR', { month: long ? 'long' : 'short' });
+}
 
 type Tab = 'costs' | 'fuel' | 'eco';
 
@@ -78,7 +84,7 @@ export default function StatsScreen() {
         {([
           { key: 'costs', label: 'Coûts' },
           { key: 'fuel',  label: 'Carburant' },
-          { key: 'eco',   label: 'CO2' },
+          { key: 'eco',   label: '🌱 CO2' },
         ] as { key: Tab; label: string }[]).map((t) => (
           <TouchableOpacity
             key={t.key}
@@ -164,7 +170,7 @@ export default function StatsScreen() {
                     return (
                       <View key={m.month} style={styles.monthCard}>
                         <View style={styles.monthCardHeader}>
-                          <Text style={styles.monthCardLabel}>{m.month}</Text>
+                          <Text style={styles.monthCardLabel}>{toMonthLabel(m.month, true)} {m.month.split('-')[0]}</Text>
                           <Text style={styles.monthCardTotal}>{fmt(m.total)}</Text>
                         </View>
                         {[
@@ -192,7 +198,7 @@ export default function StatsScreen() {
                   <Text style={styles.sectionTitle}>Suivi du coût mensuel</Text>
                   <View style={styles.trendCard}>
                     <MiniBarChart
-                      data={costs!.costsByMonth.slice(-6).map((m: any) => ({ label: m.month.slice(0, 3), value: m.total }))}
+                      data={costs!.costsByMonth.slice(-6).map((m: any) => ({ label: toMonthLabel(m.month), value: m.total }))}
                       color="#2563eb"
                     />
                   </View>
@@ -247,12 +253,12 @@ export default function StatsScreen() {
                   <Text style={styles.kpiLabel}>€/km</Text>
                 </View>
                 <View style={styles.kpiCard}>
-                  <Text style={styles.kpiIcon}>📏</Text>
+                  <Text style={styles.kpiIcon}>🛣️</Text>
                   <Text style={styles.kpiValue}>{((global?.totalDistance ?? 0) / 1000).toFixed(0)}k</Text>
                   <Text style={styles.kpiLabel}>km total</Text>
                 </View>
                 <View style={styles.kpiCard}>
-                  <Text style={styles.kpiIcon}>🪣</Text>
+                  <Text style={styles.kpiIcon}>💧</Text>
                   <Text style={styles.kpiValue}>{(global?.totalLiters ?? 0).toFixed(0)}</Text>
                   <Text style={styles.kpiLabel}>litres total</Text>
                 </View>
@@ -292,18 +298,18 @@ export default function StatsScreen() {
                   <View style={styles.co2Banner}>
                     <Text style={styles.co2Label}>Émissions totales</Text>
                     <Text style={styles.co2Value}>{fmtKg(co2.totalCo2Grams)}</Text>
-                    <Text style={styles.co2Sub}>CO2 émis</Text>
+                    <Text style={styles.co2Sub}>🌍 CO2 émis</Text>
                   </View>
 
                   {(co2.co2ByMonth?.length ?? 0) > 0 && (
                     <View style={styles.section}>
-                      <Text style={styles.sectionTitle}>Émissions par mois</Text>
+                      <Text style={styles.sectionTitle}>🌿 Émissions par mois</Text>
                       {co2.co2ByMonth.slice(-6).map((m: any) => {
                         const kg = Math.round(m.co2Grams / 1000);
                         const maxKg = Math.max(...co2.co2ByMonth.map((x: any) => Math.round(x.co2Grams / 1000)), 1);
                         return (
                           <View key={m.month} style={styles.barRow}>
-                            <Text style={styles.barLabel}>{m.month.slice(0, 6)}</Text>
+                            <Text style={styles.barLabel}>{toMonthLabel(m.month)}</Text>
                             <View style={[styles.barTrack, { backgroundColor: '#d1fae5' }]}>
                               <View style={[styles.barFill, { width: `${(kg / maxKg) * 100}%` as any, backgroundColor: '#10b981' }]} />
                             </View>
@@ -316,10 +322,10 @@ export default function StatsScreen() {
 
                   {(co2.co2ByMonth?.length ?? 0) > 1 && (
                     <View style={styles.section}>
-                      <Text style={styles.sectionTitle}>Suivi des émissions CO2</Text>
+                      <Text style={styles.sectionTitle}>📈 Suivi des émissions CO2</Text>
                       <View style={styles.trendCard}>
                         <MiniBarChart
-                          data={co2.co2ByMonth.slice(-6).map((m: any) => ({ label: m.month.slice(0, 3), value: Math.round(m.co2Grams / 1000) }))}
+                          data={co2.co2ByMonth.slice(-6).map((m: any) => ({ label: toMonthLabel(m.month), value: Math.round(m.co2Grams / 1000) }))}
                           color="#10b981"
                         />
                       </View>
@@ -328,7 +334,7 @@ export default function StatsScreen() {
 
                   {(co2.co2ByVehicle?.length ?? 0) > 0 && (
                     <View style={styles.section}>
-                      <Text style={styles.sectionTitle}>Par véhicule</Text>
+                      <Text style={styles.sectionTitle}>🚗 Par véhicule</Text>
                       {co2.co2ByVehicle.map((v: any) => (
                         <View key={v.vehicleId} style={styles.vehicleCard}>
                           <View style={styles.vehicleHeader}>

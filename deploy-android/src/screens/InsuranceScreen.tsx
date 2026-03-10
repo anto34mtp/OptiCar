@@ -9,6 +9,7 @@ import {
   ActivityIndicator,
 } from 'react-native';
 import { useState } from 'react';
+import DatePickerModal from '../components/DatePickerModal';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { insuranceService } from '../services/api';
 
@@ -27,6 +28,7 @@ export default function InsuranceScreen({ route }: any) {
   const { vehicleId, vehicleName } = route.params;
   const queryClient = useQueryClient();
   const [showForm, setShowForm] = useState(false);
+  const [showDatePicker, setShowDatePicker] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [form, setForm] = useState({ date: '', amount: '', type: 'MENSUEL', insurer: '', notes: '' });
 
@@ -97,7 +99,20 @@ export default function InsuranceScreen({ route }: any) {
 
       {showForm && (
         <View style={styles.formCard}>
-          <TextInput style={styles.input} placeholder="Date (AAAA-MM-JJ)" value={form.date} onChangeText={(v) => setForm({ ...form, date: v })} />
+          <DatePickerModal
+            visible={showDatePicker}
+            value={form.date || new Date().toISOString().split('T')[0]}
+            onConfirm={(d) => { setForm({ ...form, date: d }); setShowDatePicker(false); }}
+            onCancel={() => setShowDatePicker(false)}
+          />
+          <TouchableOpacity
+            style={[styles.input, { justifyContent: 'center' }]}
+            onPress={() => setShowDatePicker(true)}
+          >
+            <Text style={{ fontSize: 15, color: form.date ? '#111827' : '#9ca3af' }}>
+              📅 {form.date || 'Choisir une date'}
+            </Text>
+          </TouchableOpacity>
           <TextInput style={styles.input} placeholder="Montant" keyboardType="numeric" value={form.amount} onChangeText={(v) => setForm({ ...form, amount: v })} />
           <View style={styles.typeRow}>
             {Object.keys(TYPE_LABELS).map((t) => (

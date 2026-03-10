@@ -56,10 +56,6 @@ export async function checkAndScheduleNotifications(): Promise<void> {
   }
 
   for (const vehicle of vehicles) {
-    // Per-vehicle toggle check
-    if (!useNotificationSettingsStore.getState().isVehicleEnabled(vehicle.id)) {
-      continue;
-    }
     let statuses: any[];
     try {
       statuses = await maintenanceService.getStatus(vehicle.id);
@@ -67,11 +63,26 @@ export async function checkAndScheduleNotifications(): Promise<void> {
       continue;
     }
 
+    // Per-vehicle toggle check — annule les notifs existantes si désactivé
+    if (!useNotificationSettingsStore.getState().isVehicleEnabled(vehicle.id)) {
+      for (const s of statuses) {
+        const idBase = `${vehicle.id}-${s.partType}`;
+        await Notifications.cancelScheduledNotificationAsync(`${idBase}-daily`).catch(() => {});
+        await clearFlag(`notified-${idBase}-90`);
+        await clearFlag(`notified-${idBase}-95`);
+      }
+      continue;
+    }
+
     const vehicleName = `${vehicle.brand} ${vehicle.model}`;
 
     for (const s of statuses) {
-      // Per-partType toggle check
+      // Per-partType toggle check — annule les notifs existantes si désactivé
       if (!useNotificationSettingsStore.getState().isPartTypeEnabled(vehicle.id, s.partType)) {
+        const idBase = `${vehicle.id}-${s.partType}`;
+        await Notifications.cancelScheduledNotificationAsync(`${idBase}-daily`).catch(() => {});
+        await clearFlag(`notified-${idBase}-90`);
+        await clearFlag(`notified-${idBase}-95`);
         continue;
       }
 

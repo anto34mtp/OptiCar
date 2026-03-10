@@ -40,6 +40,9 @@ RUN npx prisma generate
 # Copy built application
 COPY --from=builder /app/dist ./dist
 
+# Copy email templates (non-compilés par TypeScript)
+COPY --from=builder /app/src/auth/templates ./dist/auth/templates
+
 # Expose port
 EXPOSE 3000
 

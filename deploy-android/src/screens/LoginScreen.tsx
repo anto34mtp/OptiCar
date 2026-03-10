@@ -13,6 +13,7 @@ import { useNavigation } from '@react-navigation/native';
 import { useMutation } from '@tanstack/react-query';
 import { authService } from '../services/api';
 import { useAuthStore } from '../stores/authStore';
+import { clearAllLocalData } from '../services/local';
 
 export default function LoginScreen() {
   const navigation = useNavigation<any>();
@@ -23,6 +24,7 @@ export default function LoginScreen() {
   const loginMutation = useMutation({
     mutationFn: () => authService.login(email, password),
     onSuccess: async (data) => {
+      await clearAllLocalData();
       await setAuth(data.user, data.accessToken, data.refreshToken);
     },
     onError: () => {
@@ -67,6 +69,10 @@ export default function LoginScreen() {
             </Text>
           </TouchableOpacity>
         </View>
+
+        <TouchableOpacity onPress={() => navigation.navigate('ForgotPassword')} style={styles.forgotRow}>
+          <Text style={styles.forgotLink}>Mot de passe oublié ?</Text>
+        </TouchableOpacity>
 
         <TouchableOpacity onPress={() => navigation.navigate('Register')}>
           <Text style={styles.link}>
@@ -126,11 +132,19 @@ const styles = StyleSheet.create({
   },
   link: {
     textAlign: 'center',
-    marginTop: 24,
+    marginTop: 16,
     color: '#6b7280',
   },
   linkBold: {
     color: '#3b82f6',
     fontWeight: '600',
+  },
+  forgotRow: {
+    marginTop: 16,
+    alignItems: 'center',
+  },
+  forgotLink: {
+    color: '#6b7280',
+    fontSize: 14,
   },
 });

@@ -1,5 +1,18 @@
 import axios from 'axios';
 import * as SecureStore from 'expo-secure-store';
+import { useAuthStore } from '../stores/authStore';
+import {
+  localVehiclesService,
+  localRefuelsService,
+  localRefuelsExtService,
+  localMaintenanceService,
+  localMaintenanceExtService,
+  localInsuranceService,
+  localStatsService,
+  PART_TYPE_TO_CATEGORY,
+} from './local';
+
+const isLocal = () => useAuthStore.getState().isLocalMode;
 
 // API URL from environment variable or default for development
 const API_URL = process.env.EXPO_PUBLIC_API_URL
@@ -26,7 +39,12 @@ api.interceptors.response.use(
   async (error) => {
     const originalRequest = error.config;
 
-    if (error.response?.status === 401 && !originalRequest._retry) {
+    // Ne pas tenter de refresh sur les endpoints d'auth eux-mêmes
+    const isAuthEndpoint = originalRequest.url?.includes('/auth/login') ||
+      originalRequest.url?.includes('/auth/register') ||
+      originalRequest.url?.includes('/auth/refresh');
+
+    if (error.response?.status === 401 && !originalRequest._retry && !isAuthEndpoint) {
       originalRequest._retry = true;
 
       const refreshToken = await SecureStore.getItemAsync('refreshToken');
@@ -45,10 +63,12 @@ api.interceptors.response.use(
           originalRequest.headers.Authorization = `Bearer ${accessToken}`;
           return api(originalRequest);
         } catch {
-          await SecureStore.deleteItemAsync('accessToken');
-          await SecureStore.deleteItemAsync('refreshToken');
-          await SecureStore.deleteItemAsync('user');
+          // Refresh échoué → déconnexion complète (store + SecureStore)
+          await useAuthStore.getState().logout();
         }
+      } else {
+        // Pas de refresh token → déconnexion
+        await useAuthStore.getState().logout();
       }
     }
 
@@ -69,36 +89,47 @@ export const authService = {
     const response = await api.post('/auth/register', { email, password, name });
     return response.data;
   },
+
+  async forgotPassword(email: string) {
+    const response = await api.post('/auth/forgot-password', { email });
+    return response.data;
+  },
 };
 
 // Vehicles service
 export const vehiclesService = {
   async getAll() {
+    if (isLocal()) return localVehiclesService.getAll();
     const response = await api.get('/vehicles');
     return response.data;
   },
 
   async getOne(id: string) {
+    if (isLocal()) return localVehiclesService.getOne(id);
     const response = await api.get(`/vehicles/${id}`);
     return response.data;
   },
 
   async getWithStats(id: string) {
+    if (isLocal()) return localVehiclesService.getWithStats(id);
     const response = await api.get(`/vehicles/${id}/stats`);
     return response.data;
   },
 
   async create(data: { brand: string; model: string; fuelType: string; year?: number; co2PerKm?: number }) {
+    if (isLocal()) return localVehiclesService.create(data);
     const response = await api.post('/vehicles', data);
     return response.data;
   },
 
   async update(id: string, data: Partial<{ brand: string; model: string; fuelType: string; year: number; co2PerKm: number }>) {
+    if (isLocal()) return localVehiclesService.update(id, data);
     const response = await api.patch(`/vehicles/${id}`, data);
     return response.data;
   },
 
   async delete(id: string) {
+    if (isLocal()) return localVehiclesService.delete(id);
     await api.delete(`/vehicles/${id}`);
   },
 };
@@ -106,6 +137,7 @@ export const vehiclesService = {
 // Refuels service
 export const refuelsService = {
   async getByVehicle(vehicleId: string) {
+    if (isLocal()) return localRefuelsService.getByVehicle(vehicleId);
     const response = await api.get(`/vehicles/${vehicleId}/refuels`);
     return response.data;
   },
@@ -117,6 +149,7 @@ export const refuelsService = {
     totalPrice: number;
     sourceType: string;
   }) {
+    if (isLocal()) return localRefuelsService.create(vehicleId, data);
     const response = await api.post(`/vehicles/${vehicleId}/refuels`, data);
     return response.data;
   },
@@ -125,6 +158,7 @@ export const refuelsService = {
 // OCR service
 export const ocrService = {
   async analyze(image: string, sourceType: 'ticket' | 'pump') {
+    if (isLocal()) throw new Error('OCR non disponible en mode local');
     const response = await api.post('/ocr/analyze', { image, sourceType });
     return response.data;
   },
@@ -133,50 +167,67 @@ export const ocrService = {
 // Maintenance service
 export const maintenanceService = {
   async getRules(vehicleId: string) {
+    if (isLocal()) return localMaintenanceService.getRules(vehicleId);
     const response = await api.get(`/vehicles/${vehicleId}/maintenance/rules`);
     return response.data;
   },
 
+  async createRule(vehicleId: string, data: any) {
+    if (isLocal()) return localMaintenanceService.createRule(vehicleId, data);
+    const category = data.category || PART_TYPE_TO_CATEGORY[data.partType] || 'MOTEUR';
+    const response = await api.post(`/vehicles/${vehicleId}/maintenance/rules`, { ...data, category });
+    return response.data;
+  },
+
   async initDefaults(vehicleId: string) {
+    if (isLocal()) return localMaintenanceService.initDefaults(vehicleId);
     const response = await api.post(`/vehicles/${vehicleId}/maintenance/rules/defaults`);
     return response.data;
   },
 
   async updateRule(id: string, data: any) {
+    if (isLocal()) return localMaintenanceService.updateRule(id, data);
     const response = await api.patch(`/maintenance/rules/${id}`, data);
     return response.data;
   },
 
   async deleteRule(id: string) {
+    if (isLocal()) return localMaintenanceService.deleteRule(id);
     await api.delete(`/maintenance/rules/${id}`);
   },
 
   async getRecords(vehicleId: string) {
+    if (isLocal()) return localMaintenanceService.getRecords(vehicleId);
     const response = await api.get(`/vehicles/${vehicleId}/maintenance/records`);
     return response.data;
   },
 
   async createRecord(vehicleId: string, data: any) {
+    if (isLocal()) return localMaintenanceService.createRecord(vehicleId, data);
     const response = await api.post(`/vehicles/${vehicleId}/maintenance/records`, data);
     return response.data;
   },
 
   async getStatus(vehicleId: string) {
+    if (isLocal()) return localMaintenanceService.getStatus(vehicleId);
     const response = await api.get(`/vehicles/${vehicleId}/maintenance/status`);
     return response.data;
   },
 
   async getPredictions(vehicleId: string) {
+    if (isLocal()) return localMaintenanceService.getPredictions(vehicleId);
     const response = await api.get(`/vehicles/${vehicleId}/maintenance/predictions`);
     return response.data;
   },
 
   async getCosts(vehicleId: string) {
+    if (isLocal()) return localMaintenanceService.getCosts(vehicleId);
     const response = await api.get(`/vehicles/${vehicleId}/maintenance/costs`);
     return response.data;
   },
 
   async scanInvoice(vehicleId: string, image: string) {
+    if (isLocal()) throw new Error('OCR non disponible en mode local');
     const response = await api.post(`/vehicles/${vehicleId}/maintenance/scan`, { image });
     return response.data;
   },
@@ -185,22 +236,38 @@ export const maintenanceService = {
 // Stats service
 export const statsService = {
   async getGlobalStats() {
+    if (isLocal()) return localStatsService.getGlobalStats();
     const response = await api.get('/stats/summary');
     return response.data;
   },
 
   async getVehicleStats(vehicleId: string) {
+    if (isLocal()) return localStatsService.getVehicleStats(vehicleId);
     const response = await api.get(`/stats/vehicle/${vehicleId}`);
     return response.data;
   },
 
   async getTotalCosts() {
+    if (isLocal()) return localStatsService.getTotalCosts();
     const response = await api.get('/stats/total-costs');
     return response.data;
   },
 
   async getCo2Stats() {
+    if (isLocal()) return localStatsService.getCo2Stats();
     const response = await api.get('/stats/co2');
+    return response.data;
+  },
+
+  async getConsumptionHistory(params?: { vehicleId?: string }) {
+    if (isLocal()) return localStatsService.getConsumptionHistory(params);
+    const response = await api.get('/stats/consumption', { params });
+    return response.data;
+  },
+
+  async getFuelPriceHistory(params?: { vehicleId?: string }) {
+    if (isLocal()) return localStatsService.getFuelPriceHistory(params);
+    const response = await api.get('/stats/fuel-prices', { params });
     return response.data;
   },
 };
@@ -208,11 +275,13 @@ export const statsService = {
 // Refuels extended
 export const refuelsExtService = {
   async update(id: string, data: any) {
+    if (isLocal()) return localRefuelsExtService.update(id, data);
     const response = await api.patch(`/refuels/${id}`, data);
     return response.data;
   },
 
   async delete(id: string) {
+    if (isLocal()) return localRefuelsExtService.delete(id);
     await api.delete(`/refuels/${id}`);
   },
 };
@@ -220,21 +289,25 @@ export const refuelsExtService = {
 // Insurance service
 export const insuranceService = {
   async getByVehicle(vehicleId: string) {
+    if (isLocal()) return localInsuranceService.getByVehicle(vehicleId);
     const response = await api.get(`/vehicles/${vehicleId}/insurance`);
     return response.data;
   },
 
   async create(vehicleId: string, data: any) {
+    if (isLocal()) return localInsuranceService.create(vehicleId, data);
     const response = await api.post(`/vehicles/${vehicleId}/insurance`, data);
     return response.data;
   },
 
   async update(id: string, data: any) {
+    if (isLocal()) return localInsuranceService.update(id, data);
     const response = await api.patch(`/insurance/${id}`, data);
     return response.data;
   },
 
   async delete(id: string) {
+    if (isLocal()) return localInsuranceService.delete(id);
     await api.delete(`/insurance/${id}`);
   },
 };
@@ -242,11 +315,13 @@ export const insuranceService = {
 // Maintenance extended
 export const maintenanceExtService = {
   async updateRecord(id: string, data: any) {
+    if (isLocal()) return localMaintenanceExtService.updateRecord(id, data);
     const response = await api.patch(`/maintenance/records/${id}`, data);
     return response.data;
   },
 
   async deleteRecord(id: string) {
+    if (isLocal()) return localMaintenanceExtService.deleteRecord(id);
     await api.delete(`/maintenance/records/${id}`);
   },
 };

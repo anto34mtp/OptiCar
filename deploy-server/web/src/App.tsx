@@ -3,6 +3,8 @@ import { useAuthStore } from './stores/authStore';
 import Layout from './components/layout/Layout';
 import LoginPage from './pages/auth/LoginPage';
 import RegisterPage from './pages/auth/RegisterPage';
+import ForgotPasswordPage from './pages/auth/ForgotPasswordPage';
+import ResetPasswordPage from './pages/auth/ResetPasswordPage';
 import DashboardPage from './pages/dashboard/DashboardPage';
 import VehiclesPage from './pages/vehicles/VehiclesPage';
 import VehicleDetailPage from './pages/vehicles/VehicleDetailPage';
@@ -12,7 +14,6 @@ import MaintenancePage from './pages/maintenance/MaintenancePage';
 import VehicleMaintenancePage from './pages/maintenance/VehicleMaintenancePage';
 import AddMaintenancePage from './pages/maintenance/AddMaintenancePage';
 import MaintenanceRulesPage from './pages/maintenance/MaintenanceRulesPage';
-import TotalCostsPage from './pages/costs/TotalCostsPage';
 
 function PrivateRoute({ children }: { children: React.ReactNode }) {
   const isAuthenticated = useAuthStore((state) => state.isAuthenticated);
@@ -43,6 +44,8 @@ export default function App() {
           </PublicRoute>
         }
       />
+      <Route path="/forgot-password" element={<ForgotPasswordPage />} />
+      <Route path="/reset-password" element={<ResetPasswordPage />} />
       <Route
         path="/"
         element={
@@ -60,7 +63,7 @@ export default function App() {
         <Route path="maintenance/:vehicleId" element={<VehicleMaintenancePage />} />
         <Route path="maintenance/:vehicleId/add" element={<AddMaintenancePage />} />
         <Route path="maintenance/:vehicleId/rules" element={<MaintenanceRulesPage />} />
-        <Route path="costs" element={<TotalCostsPage />} />
+        <Route path="costs" element={<Navigate to="/stats" replace />} />
       </Route>
     </Routes>
   );

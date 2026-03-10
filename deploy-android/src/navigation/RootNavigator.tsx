@@ -6,19 +6,20 @@ import { useAuthStore } from '../stores/authStore';
 import { useNotificationSettingsStore } from '../stores/notificationSettingsStore';
 
 // Screens
+import WelcomeScreen from '../screens/WelcomeScreen';
 import LoginScreen from '../screens/LoginScreen';
 import RegisterScreen from '../screens/RegisterScreen';
 import DashboardScreen from '../screens/DashboardScreen';
 import VehiclesScreen from '../screens/VehiclesScreen';
 import VehicleDetailScreen from '../screens/VehicleDetailScreen';
 import AddRefuelScreen from '../screens/AddRefuelScreen';
-import EcoScreen from '../screens/EcoScreen';
 import MaintenanceScreen from '../screens/MaintenanceScreen';
 import VehicleMaintenanceScreen from '../screens/VehicleMaintenanceScreen';
 import AddMaintenanceScreen from '../screens/AddMaintenanceScreen';
 import MaintenanceRulesScreen from '../screens/MaintenanceRulesScreen';
 import InsuranceScreen from '../screens/InsuranceScreen';
-import TotalCostsScreen from '../screens/TotalCostsScreen';
+import ForgotPasswordScreen from '../screens/ForgotPasswordScreen';
+import StatsScreen from '../screens/StatsScreen';
 
 const Stack = createNativeStackNavigator();
 const Tab = createBottomTabNavigator();
@@ -28,8 +29,7 @@ function TabIcon({ name, focused }: { name: string; focused: boolean }) {
     Dashboard: '🏠',
     Vehicles: '🚗',
     Maintenance: '🔧',
-    Costs: '💰',
-    Eco: '🌱',
+    Stats: '📊',
   };
   return (
     <Text style={{ fontSize: focused ? 24 : 20 }}>{icons[name]}</Text>
@@ -62,21 +62,16 @@ function MainTabs() {
         options={{ title: 'Entretien' }}
       />
       <Tab.Screen
-        name="Costs"
-        component={TotalCostsScreen}
-        options={{ title: 'Coûts' }}
-      />
-      <Tab.Screen
-        name="Eco"
-        component={EcoScreen}
-        options={{ title: 'Stats' }}
+        name="Stats"
+        component={StatsScreen}
+        options={{ title: 'Statistiques' }}
       />
     </Tab.Navigator>
   );
 }
 
 export default function RootNavigator() {
-  const { isAuthenticated, isLoading, loadAuth } = useAuthStore();
+  const { isAuthenticated, isLoading, isLocalMode, hasChosenMode, loadAuth } = useAuthStore();
   const { loadSettings } = useNotificationSettingsStore();
 
   useEffect(() => {
@@ -94,12 +89,7 @@ export default function RootNavigator() {
 
   return (
     <Stack.Navigator screenOptions={{ headerShown: false }}>
-      {!isAuthenticated ? (
-        <>
-          <Stack.Screen name="Login" component={LoginScreen} />
-          <Stack.Screen name="Register" component={RegisterScreen} />
-        </>
-      ) : (
+      {isAuthenticated || isLocalMode ? (
         <>
           <Stack.Screen name="Main" component={MainTabs} />
           <Stack.Screen
@@ -131,6 +121,33 @@ export default function RootNavigator() {
             name="Insurance"
             component={InsuranceScreen}
             options={{ headerShown: true, title: 'Assurance' }}
+          />
+          {isLocalMode && (
+            <>
+              <Stack.Screen name="Register" component={RegisterScreen} />
+              <Stack.Screen name="Login" component={LoginScreen} />
+            </>
+          )}
+        </>
+      ) : !hasChosenMode ? (
+        <>
+          <Stack.Screen name="Welcome" component={WelcomeScreen} />
+          <Stack.Screen name="Login" component={LoginScreen} />
+          <Stack.Screen name="Register" component={RegisterScreen} />
+          <Stack.Screen
+            name="ForgotPassword"
+            component={ForgotPasswordScreen}
+            options={{ headerShown: true, title: 'Mot de passe oublié' }}
+          />
+        </>
+      ) : (
+        <>
+          <Stack.Screen name="Login" component={LoginScreen} />
+          <Stack.Screen name="Register" component={RegisterScreen} />
+          <Stack.Screen
+            name="ForgotPassword"
+            component={ForgotPasswordScreen}
+            options={{ headerShown: true, title: 'Mot de passe oublié' }}
           />
         </>
       )}

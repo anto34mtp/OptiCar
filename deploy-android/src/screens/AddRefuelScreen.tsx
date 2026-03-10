@@ -14,7 +14,9 @@ import { useRoute, useNavigation } from '@react-navigation/native';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import * as ImagePicker from 'expo-image-picker';
 import { vehiclesService, refuelsService, ocrService } from '../services/api';
+import { useAuthStore } from '../stores/authStore';
 import { Picker } from '@react-native-picker/picker';
+import DatePickerModal from '../components/DatePickerModal';
 
 const sourceTypes = [
   { value: 'TICKET', label: 'Ticket de caisse' },
@@ -26,6 +28,7 @@ export default function AddRefuelScreen() {
   const route = useRoute<any>();
   const navigation = useNavigation<any>();
   const queryClient = useQueryClient();
+  const isLocalMode = useAuthStore((state) => state.isLocalMode);
   const preselectedVehicleId = route.params?.vehicleId;
 
   const [step, setStep] = useState<'vehicle' | 'capture' | 'verify'>('vehicle');
@@ -35,20 +38,107 @@ export default function AddRefuelScreen() {
   const [isAnalyzing, setIsAnalyzing] = useState(false);
 
   const [formData, setFormData] = useState({
+    date: new Date().toISOString().split('T')[0],
     mileage: '',
     pricePerLiter: '',
     liters: '',
     totalPrice: '',
   });
+  const [showDatePicker, setShowDatePicker] = useState(false);
+
+  const handlePricePerLiter = (text: string) => {
+    setFormData((prev) => {
+      const newData = { ...prev, pricePerLiter: text };
+      const val = parseFloat(text);
+      if (!isNaN(val) && val > 0) {
+        const liters = parseFloat(prev.liters);
+        const total = parseFloat(prev.totalPrice);
+        if (!isNaN(liters) && liters > 0) {
+          newData.totalPrice = (val * liters).toFixed(2);
+        } else if (!isNaN(total) && total > 0) {
+          newData.liters = (total / val).toFixed(2);
+        }
+      }
+      return newData;
+    });
+  };
+
+  const handleLiters = (text: string) => {
+    setFormData((prev) => {
+      const newData = { ...prev, liters: text };
+      const val = parseFloat(text);
+      if (!isNaN(val) && val > 0) {
+        const ppl = parseFloat(prev.pricePerLiter);
+        const total = parseFloat(prev.totalPrice);
+        if (!isNaN(ppl) && ppl > 0) {
+          newData.totalPrice = (ppl * val).toFixed(2);
+        } else if (!isNaN(total) && total > 0) {
+          newData.pricePerLiter = (total / val).toFixed(2);
+        }
+      }
+      return newData;
+    });
+  };
+
+  const handleTotalPrice = (text: string) => {
+    setFormData((prev) => {
+      const newData = { ...prev, totalPrice: text };
+      const val = parseFloat(text);
+      if (!isNaN(val) && val > 0) {
+        const liters = parseFloat(prev.liters);
+        const ppl = parseFloat(prev.pricePerLiter);
+        if (!isNaN(liters) && liters > 0) {
+          newData.pricePerLiter = (val / liters).toFixed(2);
+        } else if (!isNaN(ppl) && ppl > 0) {
+          newData.liters = (val / ppl).toFixed(2);
+        }
+      }
+      return newData;
+    });
+  };
 
   const { data: vehicles } = useQuery({
     queryKey: ['vehicles'],
     queryFn: vehiclesService.getAll,
   });
 
+  const [mileageChecking, setMileageChecking] = useState(false);
+
+  const handleContinue = async () => {
+    const enteredMileage = parseInt(formData.mileage);
+    if (!selectedVehicleId || isNaN(enteredMileage)) {
+      setStep('capture');
+      return;
+    }
+
+    setMileageChecking(true);
+    try {
+      const vehicleData = await vehiclesService.getWithStats(selectedVehicleId);
+      const currentMileage = vehicleData?.stats?.currentMileage ?? 0;
+
+      if (currentMileage > 0 && enteredMileage < currentMileage) {
+        Alert.alert(
+          '⚠️ Kilométrage incorrect',
+          `Le kilométrage saisi (${enteredMileage.toLocaleString('fr-FR')} km) est inférieur au dernier kilométrage enregistré (${currentMileage.toLocaleString('fr-FR')} km).\n\nVoulez-vous corriger ou continuer quand même ?`,
+          [
+            { text: 'Corriger', style: 'cancel' },
+            { text: 'Continuer quand même', onPress: () => setStep('capture') },
+          ]
+        );
+      } else {
+        setStep('capture');
+      }
+    } catch {
+      setStep('capture');
+    } finally {
+      setMileageChecking(false);
+    }
+  };
+
   const createMutation = useMutation({
     mutationFn: () =>
       refuelsService.create(selectedVehicleId, {
+        date: new Date(formData.date).toISOString(),
         mileage: parseInt(formData.mileage),
         pricePerLiter: parseFloat(formData.pricePerLiter),
         liters: parseFloat(formData.liters),
@@ -155,11 +245,14 @@ export default function AddRefuelScreen() {
           />
 
           <TouchableOpacity
-            style={[styles.button, (!selectedVehicleId || !formData.mileage) && styles.buttonDisabled]}
-            onPress={() => setStep('capture')}
-            disabled={!selectedVehicleId || !formData.mileage}
+            style={[styles.button, (!selectedVehicleId || !formData.mileage || mileageChecking) && styles.buttonDisabled]}
+            onPress={handleContinue}
+            disabled={!selectedVehicleId || !formData.mileage || mileageChecking}
           >
-            <Text style={styles.buttonText}>Continuer</Text>
+            {mileageChecking
+              ? <ActivityIndicator color="#fff" size="small" />
+              : <Text style={styles.buttonText}>Continuer</Text>
+            }
           </TouchableOpacity>
         </View>
       )}
@@ -181,7 +274,16 @@ export default function AddRefuelScreen() {
             </Picker>
           </View>
 
-          {isAnalyzing ? (
+          {isLocalMode ? (
+            <View style={styles.ocrDisabledBox}>
+              <Text style={styles.ocrDisabledIcon}>📷</Text>
+              <Text style={styles.ocrDisabledTitle}>Scan non disponible</Text>
+              <Text style={styles.ocrDisabledText}>
+                La reconnaissance de ticket/pompe nécessite un compte.{'\n'}
+                Utilisez la saisie manuelle ci-dessous.
+              </Text>
+            </View>
+          ) : isAnalyzing ? (
             <View style={styles.analyzing}>
               <ActivityIndicator size="large" color="#3b82f6" />
               <Text style={styles.analyzingText}>Analyse en cours...</Text>
@@ -221,6 +323,17 @@ export default function AddRefuelScreen() {
         <View style={styles.section}>
           <Text style={styles.stepTitle}>3. Vérifier les données</Text>
 
+          <DatePickerModal
+            visible={showDatePicker}
+            value={formData.date}
+            onConfirm={(d) => { setFormData((p) => ({ ...p, date: d })); setShowDatePicker(false); }}
+            onCancel={() => setShowDatePicker(false)}
+          />
+          <Text style={styles.label}>Date du plein</Text>
+          <TouchableOpacity style={styles.dateInput} onPress={() => setShowDatePicker(true)}>
+            <Text style={styles.dateInputText}>📅 {formData.date}</Text>
+          </TouchableOpacity>
+
           {imageUri && (
             <Image source={{ uri: imageUri }} style={styles.preview} />
           )}
@@ -230,7 +343,7 @@ export default function AddRefuelScreen() {
             style={styles.input}
             placeholder="Ex: 1.789"
             value={formData.pricePerLiter}
-            onChangeText={(text) => setFormData({ ...formData, pricePerLiter: text })}
+            onChangeText={handlePricePerLiter}
             keyboardType="decimal-pad"
           />
 
@@ -239,7 +352,7 @@ export default function AddRefuelScreen() {
             style={styles.input}
             placeholder="Ex: 45.32"
             value={formData.liters}
-            onChangeText={(text) => setFormData({ ...formData, liters: text })}
+            onChangeText={handleLiters}
             keyboardType="decimal-pad"
           />
 
@@ -248,7 +361,7 @@ export default function AddRefuelScreen() {
             style={styles.input}
             placeholder="Ex: 75.50"
             value={formData.totalPrice}
-            onChangeText={(text) => setFormData({ ...formData, totalPrice: text })}
+            onChangeText={handleTotalPrice}
             keyboardType="decimal-pad"
           />
 
@@ -372,10 +485,35 @@ const styles = StyleSheet.create({
   backButtonText: {
     color: '#6b7280',
   },
+  ocrDisabledBox: {
+    backgroundColor: '#f9fafb',
+    borderWidth: 1,
+    borderColor: '#e5e7eb',
+    borderRadius: 12,
+    padding: 24,
+    alignItems: 'center',
+    marginTop: 20,
+    gap: 8,
+  },
+  ocrDisabledIcon: { fontSize: 36 },
+  ocrDisabledTitle: { fontSize: 16, fontWeight: '600', color: '#374151' },
+  ocrDisabledText: { fontSize: 13, color: '#9ca3af', textAlign: 'center', lineHeight: 20 },
   preview: {
     width: '100%',
     height: 200,
     borderRadius: 12,
     marginBottom: 16,
+  },
+  dateInput: {
+    backgroundColor: 'white',
+    borderWidth: 1,
+    borderColor: '#d1d5db',
+    borderRadius: 12,
+    padding: 16,
+    marginBottom: 0,
+  },
+  dateInputText: {
+    fontSize: 15,
+    color: '#111827',
   },
 });

@@ -156,9 +156,9 @@ export default function VehicleMaintenanceScreen({ route, navigation }: any) {
         <Text style={styles.notifText}>Notifications ce véhicule</Text>
         <Switch
           value={isVehicleEnabled(vehicleId)}
-          onValueChange={(val) => {
-            setVehicleEnabled(vehicleId, val);
-            if (val) checkAndScheduleNotifications();
+          onValueChange={async (val) => {
+            await setVehicleEnabled(vehicleId, val);
+            await checkAndScheduleNotifications();
           }}
           trackColor={{ true: '#3b82f6' }}
         />
@@ -176,34 +176,115 @@ export default function VehicleMaintenanceScreen({ route, navigation }: any) {
         </View>
       ) : (
         <>
-          {/* Wear gauges */}
+          {/* Wear gauges + history per partType */}
           {Object.entries(byCategory).map(([cat, items]) => (
             <View key={cat} style={{ marginBottom: 20 }}>
               <Text style={styles.sectionTitle}>{CATEGORY_LABELS[cat] || cat}</Text>
-              {items.map((s: any) => (
-                <View key={s.ruleId} style={styles.gaugeCard}>
-                  <View style={styles.gaugeHeader}>
-                    <View style={styles.gaugeNameRow}>
-                      <Text style={styles.gaugeName}>{PART_TYPE_LABELS[s.partType] || s.partType}</Text>
-                      <Switch
-                        value={isPartTypeEnabled(vehicleId, s.partType)}
-                        onValueChange={(val) => {
-                          setPartTypeEnabled(vehicleId, s.partType, val);
-                          if (val) checkAndScheduleNotifications();
-                        }}
-                        trackColor={{ true: '#3b82f6' }}
-                        style={styles.partTypeSwitch}
-                      />
+              {items.map((s: any) => {
+                const partRecords = (records || []).filter((r: any) => r.partType === s.partType);
+                return (
+                  <View key={s.ruleId} style={styles.gaugeCard}>
+                    <View style={styles.gaugeHeader}>
+                      <View style={styles.gaugeNameRow}>
+                        <Text style={styles.gaugeName}>{PART_TYPE_LABELS[s.partType] || s.partType}</Text>
+                        <Switch
+                          value={isPartTypeEnabled(vehicleId, s.partType)}
+                          onValueChange={async (val) => {
+                            await setPartTypeEnabled(vehicleId, s.partType, val);
+                            await checkAndScheduleNotifications();
+                          }}
+                          trackColor={{ true: '#3b82f6' }}
+                          style={styles.partTypeSwitch}
+                        />
+                      </View>
+                      <Text style={styles.gaugePercent}>{s.wearPercent !== null ? `${s.wearPercent}%` : '—'}</Text>
                     </View>
-                    <Text style={styles.gaugePercent}>{s.wearPercent !== null ? `${s.wearPercent}%` : '—'}</Text>
+                    <WearBar percent={s.wearPercent} status={s.status} />
+                    <Text style={styles.gaugeInfo}>
+                      {s.lastDate ? `Dernier: ${new Date(s.lastDate).toLocaleDateString('fr-FR')}` : 'Aucun historique'}
+                      {s.nextEstimatedDate ? ` · Prochain: ${new Date(s.nextEstimatedDate).toLocaleDateString('fr-FR')}` : ''}
+                    </Text>
+                    {partRecords.length > 0 && (
+                      <View style={styles.partHistory}>
+                        <Text style={styles.partHistoryTitle}>Historique</Text>
+                        {partRecords.map((r: any) => (
+                          <View key={r.id} style={styles.partHistoryRow}>
+                            {editingId === r.id ? (
+                              <View>
+                                <View style={styles.editRow}>
+                                  <Text style={styles.editLabel}>Km:</Text>
+                                  <TextInput
+                                    style={styles.editInput}
+                                    keyboardType="numeric"
+                                    value={String(editForm.mileage || '')}
+                                    onChangeText={(v) => setEditForm({ ...editForm, mileage: Number(v) })}
+                                  />
+                                </View>
+                                <View style={styles.editRow}>
+                                  <Text style={styles.editLabel}>Prix:</Text>
+                                  <TextInput
+                                    style={styles.editInput}
+                                    keyboardType="numeric"
+                                    value={String(editForm.price ?? '')}
+                                    onChangeText={(v) => setEditForm({ ...editForm, price: Number(v) })}
+                                  />
+                                </View>
+                                <View style={styles.editRow}>
+                                  <Text style={styles.editLabel}>Garage:</Text>
+                                  <TextInput
+                                    style={styles.editInput}
+                                    value={editForm.garage || ''}
+                                    onChangeText={(v) => setEditForm({ ...editForm, garage: v })}
+                                  />
+                                </View>
+                                <View style={styles.editActions}>
+                                  <TouchableOpacity
+                                    style={styles.saveBtn}
+                                    onPress={() => updateRecordMutation.mutate({ id: r.id, data: editForm })}
+                                  >
+                                    <Text style={styles.saveBtnText}>Sauver</Text>
+                                  </TouchableOpacity>
+                                  <TouchableOpacity onPress={() => setEditingId(null)}>
+                                    <Text style={styles.cancelBtnText}>Annuler</Text>
+                                  </TouchableOpacity>
+                                </View>
+                              </View>
+                            ) : (
+                              <View style={styles.partHistoryItem}>
+                                <View style={{ flex: 1 }}>
+                                  <Text style={styles.partHistoryDate}>
+                                    {new Date(r.date).toLocaleDateString('fr-FR')} · {r.mileage?.toLocaleString()} km
+                                    {r.garage ? ` · ${r.garage}` : ''}
+                                  </Text>
+                                  {r.price != null && (
+                                    <Text style={styles.partHistoryPrice}>{formatCurrency(r.price)}</Text>
+                                  )}
+                                </View>
+                                <View style={styles.recordActions}>
+                                  <TouchableOpacity onPress={() => {
+                                    setEditingId(r.id);
+                                    setEditForm({ mileage: r.mileage, price: r.price, garage: r.garage });
+                                  }}>
+                                    <Text style={styles.editBtnText}>Modifier</Text>
+                                  </TouchableOpacity>
+                                  <TouchableOpacity onPress={() => {
+                                    Alert.alert('Supprimer cet entretien ?', '', [
+                                      { text: 'Annuler', style: 'cancel' },
+                                      { text: 'Supprimer', style: 'destructive', onPress: () => deleteRecordMutation.mutate(r.id) },
+                                    ]);
+                                  }}>
+                                    <Text style={styles.deleteBtnText}>Supprimer</Text>
+                                  </TouchableOpacity>
+                                </View>
+                              </View>
+                            )}
+                          </View>
+                        ))}
+                      </View>
+                    )}
                   </View>
-                  <WearBar percent={s.wearPercent} status={s.status} />
-                  <Text style={styles.gaugeInfo}>
-                    {s.lastDate ? `Dernier: ${new Date(s.lastDate).toLocaleDateString('fr-FR')}` : 'Aucun historique'}
-                    {s.nextEstimatedDate ? ` · Prochain: ${new Date(s.nextEstimatedDate).toLocaleDateString('fr-FR')}` : ''}
-                  </Text>
-                </View>
-              ))}
+                );
+              })}
             </View>
           ))}
 
@@ -230,84 +311,45 @@ export default function VehicleMaintenanceScreen({ route, navigation }: any) {
               ))}
             </View>
           )}
-          {/* Maintenance records history */}
-          {records && records.length > 0 && (
-            <View style={{ marginBottom: 20 }}>
-              <Text style={styles.sectionTitle}>Historique des entretiens</Text>
-              {records.map((r: any) => (
-                <View key={r.id} style={styles.gaugeCard}>
-                  {editingId === r.id ? (
-                    <View>
-                      <View style={styles.editRow}>
-                        <Text style={styles.editLabel}>Km:</Text>
-                        <TextInput
-                          style={styles.editInput}
-                          keyboardType="numeric"
-                          value={String(editForm.mileage || '')}
-                          onChangeText={(v) => setEditForm({ ...editForm, mileage: Number(v) })}
-                        />
-                      </View>
-                      <View style={styles.editRow}>
-                        <Text style={styles.editLabel}>Prix:</Text>
-                        <TextInput
-                          style={styles.editInput}
-                          keyboardType="numeric"
-                          value={String(editForm.price ?? '')}
-                          onChangeText={(v) => setEditForm({ ...editForm, price: Number(v) })}
-                        />
-                      </View>
-                      <View style={styles.editRow}>
-                        <Text style={styles.editLabel}>Garage:</Text>
-                        <TextInput
-                          style={styles.editInput}
-                          value={editForm.garage || ''}
-                          onChangeText={(v) => setEditForm({ ...editForm, garage: v })}
-                        />
-                      </View>
-                      <View style={styles.editActions}>
-                        <TouchableOpacity
-                          style={styles.saveBtn}
-                          onPress={() => updateRecordMutation.mutate({ id: r.id, data: editForm })}
-                        >
-                          <Text style={styles.saveBtnText}>Sauver</Text>
-                        </TouchableOpacity>
-                        <TouchableOpacity onPress={() => setEditingId(null)}>
-                          <Text style={styles.cancelBtnText}>Annuler</Text>
-                        </TouchableOpacity>
-                      </View>
+          {/* Orphan records (partType not in any rule) */}
+          {(() => {
+            const rulePartTypes = new Set((statuses || []).map((s: any) => s.partType));
+            const orphans = (records || []).filter((r: any) => !rulePartTypes.has(r.partType));
+            if (!orphans.length) return null;
+            return (
+              <View style={{ marginBottom: 20 }}>
+                <Text style={styles.sectionTitle}>Autres entretiens</Text>
+                {orphans.map((r: any) => (
+                  <View key={r.id} style={styles.gaugeCard}>
+                    <View style={styles.gaugeHeader}>
+                      <Text style={styles.gaugeName}>{PART_TYPE_LABELS[r.partType] || r.partType}</Text>
+                      <Text style={styles.gaugePercent}>{r.price != null ? formatCurrency(r.price) : '—'}</Text>
                     </View>
-                  ) : (
-                    <>
-                      <View style={styles.gaugeHeader}>
-                        <Text style={styles.gaugeName}>{PART_TYPE_LABELS[r.partType] || r.partType}</Text>
-                        <Text style={styles.gaugePercent}>{r.price != null ? formatCurrency(r.price) : '—'}</Text>
-                      </View>
-                      <Text style={styles.gaugeInfo}>
-                        {new Date(r.date).toLocaleDateString('fr-FR')} · {r.mileage?.toLocaleString()} km
-                        {r.garage ? ` · ${r.garage}` : ''}
-                      </Text>
-                      <View style={styles.recordActions}>
-                        <TouchableOpacity onPress={() => {
-                          setEditingId(r.id);
-                          setEditForm({ mileage: r.mileage, price: r.price, garage: r.garage });
-                        }}>
-                          <Text style={styles.editBtnText}>Modifier</Text>
-                        </TouchableOpacity>
-                        <TouchableOpacity onPress={() => {
-                          Alert.alert('Supprimer cet entretien ?', '', [
-                            { text: 'Annuler', style: 'cancel' },
-                            { text: 'Supprimer', style: 'destructive', onPress: () => deleteRecordMutation.mutate(r.id) },
-                          ]);
-                        }}>
-                          <Text style={styles.deleteBtnText}>Supprimer</Text>
-                        </TouchableOpacity>
-                      </View>
-                    </>
-                  )}
-                </View>
-              ))}
-            </View>
-          )}
+                    <Text style={styles.gaugeInfo}>
+                      {new Date(r.date).toLocaleDateString('fr-FR')} · {r.mileage?.toLocaleString()} km
+                      {r.garage ? ` · ${r.garage}` : ''}
+                    </Text>
+                    <View style={styles.recordActions}>
+                      <TouchableOpacity onPress={() => {
+                        setEditingId(r.id);
+                        setEditForm({ mileage: r.mileage, price: r.price, garage: r.garage });
+                      }}>
+                        <Text style={styles.editBtnText}>Modifier</Text>
+                      </TouchableOpacity>
+                      <TouchableOpacity onPress={() => {
+                        Alert.alert('Supprimer cet entretien ?', '', [
+                          { text: 'Annuler', style: 'cancel' },
+                          { text: 'Supprimer', style: 'destructive', onPress: () => deleteRecordMutation.mutate(r.id) },
+                        ]);
+                      }}>
+                        <Text style={styles.deleteBtnText}>Supprimer</Text>
+                      </TouchableOpacity>
+                    </View>
+                  </View>
+                ))}
+              </View>
+            );
+          })()}
         </>
       )}
 
@@ -357,4 +399,10 @@ const styles = StyleSheet.create({
   notifText: { fontSize: 15, fontWeight: '500', color: '#111827' },
   gaugeNameRow: { flexDirection: 'row', alignItems: 'center', gap: 8, flex: 1 },
   partTypeSwitch: { transform: [{ scaleX: 0.7 }, { scaleY: 0.7 }] },
+  partHistory: { marginTop: 10, borderTopWidth: 1, borderTopColor: '#f3f4f6', paddingTop: 8 },
+  partHistoryTitle: { fontSize: 11, fontWeight: '600', color: '#9ca3af', marginBottom: 6, textTransform: 'uppercase', letterSpacing: 0.5 },
+  partHistoryRow: { marginBottom: 4 },
+  partHistoryItem: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
+  partHistoryDate: { fontSize: 12, color: '#6b7280' },
+  partHistoryPrice: { fontSize: 12, fontWeight: '500', color: '#374151' },
 });

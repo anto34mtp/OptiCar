@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import DatePickerModal from '../components/DatePickerModal';
 import {
   View,
   Text,
@@ -49,6 +50,7 @@ export default function AddMaintenanceScreen({ route, navigation }: any) {
   const [notes, setNotes] = useState('');
   const [scanImage, setScanImage] = useState<string | null>(null);
   const [scanning, setScanning] = useState(false);
+  const [showDatePicker, setShowDatePicker] = useState(false);
 
   const createMutation = useMutation({
     mutationFn: (data: any) => maintenanceService.createRecord(vehicleId, data),
@@ -56,6 +58,7 @@ export default function AddMaintenanceScreen({ route, navigation }: any) {
       queryClient.invalidateQueries({ queryKey: ['maintenance-status', vehicleId] });
       queryClient.invalidateQueries({ queryKey: ['maintenance-predictions', vehicleId] });
       queryClient.invalidateQueries({ queryKey: ['maintenance-costs', vehicleId] });
+      queryClient.invalidateQueries({ queryKey: ['maintenance-records', vehicleId] });
       Alert.alert('Succès', 'Entretien enregistré');
       navigation.goBack();
     },
@@ -164,7 +167,18 @@ export default function AddMaintenanceScreen({ route, navigation }: any) {
       {mode === 'manual' && (
         <View style={styles.form}>
           <Text style={styles.label}>Date</Text>
-          <TextInput style={styles.input} value={date} onChangeText={setDate} placeholder="AAAA-MM-JJ" />
+          <DatePickerModal
+            visible={showDatePicker}
+            value={date}
+            onConfirm={(d) => { setDate(d); setShowDatePicker(false); }}
+            onCancel={() => setShowDatePicker(false)}
+          />
+          <TouchableOpacity
+            style={[styles.input, { justifyContent: 'center' }]}
+            onPress={() => setShowDatePicker(true)}
+          >
+            <Text style={{ fontSize: 15, color: '#111827' }}>📅 {date}</Text>
+          </TouchableOpacity>
 
           <Text style={styles.label}>Kilométrage</Text>
           <TextInput style={styles.input} value={mileage} onChangeText={setMileage} keyboardType="numeric" />
